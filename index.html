@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepResearchTeam | Red Protocol</title>
+    
+    <!-- Stabil Bağımlılıklar -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #0a0000;
+            color: #ffffff;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+        }
+
+        /* Scanline Animasyonu */
+        .laser-scan {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to bottom, transparent, #ff0000, transparent);
+            box-shadow: 0 0 15px #ff0000;
+            z-index: 100;
+            pointer-events: none;
+            animation: scanMove 4s infinite linear;
+            display: none;
+        }
+
+        .active-scan .laser-scan { display: block; }
+
+        @keyframes scanMove {
+            0% { top: -5%; }
+            100% { top: 105%; }
+        }
+
+        .red-grid {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 0, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+        }
+
+        .terminal-box {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #440000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.1);
+        }
+
+        .glitch-red {
+            text-shadow: 2px 0 #ff0000, -2px 0 #ffffff;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #ff0000; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const App = () => {
+            const [query, setQuery] = useState('');
+            const [isSearching, setIsSearching] = useState(false);
+            const [logs, setLogs] = useState([]);
+            const [results, setResults] = useState(null);
+            const logsEndRef = useRef(null);
+
+            // Log ekleme fonksiyonu
+            const logAction = (text) => {
+                const time = new Date().toLocaleTimeString();
+                setLogs(prev => [...prev, `[${time}] ${text}`]);
+            };
+
+            useEffect(() => {
+                logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [logs]);
+
+            const startDeepSearch = (e) => {
+                e.preventDefault();
+                if (!query) return;
+
+                setIsSearching(true);
+                setResults(null);
+                setLogs([]);
+
+                const steps = [
+                    "ERİŞİM İZNİ ONAYLANDI...",
+                    "PROXY ZİNCİRİ OLUŞTURULUYOR...",
+                    "GİZLİ VERİTABANLARI TARANIYOR...",
+                    "REKLAM VE SEO FİLTRELERİ DEVRE DIŞI BIRAKILDI...",
+                    "HEDEF VERİ PAKETLERİ AYRIŞTIRILIYOR...",
+                    "TARAMA TAMAMLANDI."
+                ];
+
+                steps.forEach((step, i) => {
+                    setTimeout(() => logAction(step), (i + 1) * 600);
+                });
+
+                setTimeout(() => {
+                    setIsSearching(false);
+                    const q = encodeURIComponent(query);
+                    setResults([
+                        { title: "DERİN TARAMA (TAM EŞLEŞME)", url: `https://www.google.com/search?q="${q}"`, desc: "Kelimeyi olduğu gibi, hiçbir şeyi atlamadan arar." },
+                        { title: "SİSTEM DOSYALARI (PDF/DOC)", url: `https://www.google.com/search?q="${q}" filetype:pdf OR filetype:doc`, desc: "İnternete sızmış resmi evrak ve dökümanlar." },
+                        { title: "YER ALTI FORUMLARI", url: `https://www.google.com/search?q="${q}" site:reddit.com OR site:github.com OR site:forum.*`, desc: "Geliştirici toplulukları ve forumlardaki tartışmalar." },
+                        { title: "GİZLİ BAŞLIKLAR (DORK)", url: `https://www.google.com/search?q=intitle:"${q}" OR inurl:"${q}"`, desc: "Sayfa başlığında veya linkinde doğrudan hedefi bulur." }
+                    ]);
+                }, steps.length * 650);
+            };
+
+            return (
+                <div className={`min-h-screen p-4 md:p-8 ${isSearching ? 'active-scan' : ''}`}>
+                    <div className="red-grid"></div>
+                    <div className="laser-scan"></div>
+
+                    {/* Header */}
+                    <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center border-b-2 border-red-700 pb-4 mb-12">
+                        <div className="text-center md:text-left">
+                            <h1 className="text-3xl font-bold tracking-tighter glitch-red">
+                                DEEP<span className="text-red-600">RESEARCH</span>TEAM
+                            </h1>
+                            <p className="text-xs text-red-500 font-bold">PROTOKOL: KIRMIZI-BEYAZ // TR_SQUAD</p>
+                        </div>
+                        <div className="mt-4 md:mt-0 text-right font-bold text-xs">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                <span>SİSTEM AKTİF</span>
+                            </div>
+                            <div className="text-red-400">STATUS: ENCRYPTED</div>
+                        </div>
+                    </div>
+
+                    {/* Search Section */}
+                    <div className="max-w-3xl mx-auto">
+                        <form onSubmit={startDeepSearch} className="relative mb-12">
+                            <input 
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="ARANACAK HEDEFİ GİRİN..."
+                                className="w-full bg-black border-2 border-red-800 p-4 text-xl outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(255,0,0,0.5)] transition-all text-white placeholder-red-900"
+                            />
+                            <button 
+                                type="submit"
+                                disabled={isSearching}
+                                className="mt-4 w-full bg-red-700 hover:bg-white hover:text-red-700 text-white font-bold py-3 transition-all uppercase tracking-widest disabled:opacity-50"
+                            >
+                                {isSearching ? 'VERİ TOPLANIYOR...' : 'DERİN ARAMAYI BAŞLAT'}
+                            </button>
+                        </form>
+
+                        {/* Logs */}
+                        {(logs.length > 0) && (
+                            <div className="terminal-box p-4 h-40 overflow-y-auto mb-12 text-sm border-l-4 border-red-600">
+                                {logs.map((log, i) => (
+                                    <div key={i} className="mb-1">
+                                        <span className="text-red-600 mr-2">>>></span>
+                                        <span className={i === logs.length - 1 ? "text-white" : "text-gray-500"}>{log}</span>
+                                    </div>
+                                ))}
+                                <div ref={logsEndRef}></div>
+                            </div>
+                        )}
+
+                        {/* Results */}
+                        {results && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-700">
+                                {results.map((res, i) => (
+                                    <a 
+                                        key={i} 
+                                        href={res.url} 
+                                        target="_blank" 
+                                        className="block p-5 bg-black border border-red-900 hover:border-white hover:bg-red-950/20 transition-all group"
+                                    >
+                                        <h3 className="text-red-500 font-bold group-hover:text-white mb-2">{res.title}</h3>
+                                        <p className="text-xs text-gray-400">{res.desc}</p>
+                                        <div className="mt-4 text-[10px] text-red-800 font-bold uppercase tracking-widest group-hover:text-red-500">
+                                            Erişim Sağla >>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <footer className="fixed bottom-0 left-0 w-full p-2 bg-black border-t border-red-900 text-[10px] text-center text-red-900 font-bold uppercase">
+                        GİZLİLİK MODU AKTİF | DEEP RESEARCH TEAM 2025
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
