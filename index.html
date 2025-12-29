@@ -3,172 +3,487 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Desktop Simulator & Search</title>
+    <title data-i18n="wikiTitle">YarReboarded Wiki</title>
+    <!-- Tailwind CSS (Aesthetic Styling) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            background-color: #f8f9fa;
-            color: #202124;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .search-container {
-            transition: all 0.3s ease;
-        }
-        .search-container:focus-within {
-            box-shadow: 0 1px 6px rgba(32,33,36,.28);
-            border-color: rgba(223,225,229,0);
-        }
-        .result-card {
-            border-bottom: 1px solid #ebebeb;
-            padding: 1.5rem 0;
-        }
-        .result-card:last-child {
-            border-bottom: none;
-        }
-        .skeleton {
-            background: linear-gradient(90s, #ececec 25%, #f5f5f5 50%, #ececec 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
+        .wiki-card { background-color: white; border: 1px solid #e2e8f0; transition: all 0.3s; }
+        .wiki-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .btn-primary { background-color: #4f46e5; transition: background-color 0.2s; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: #64748b; transition: background-color 0.2s; }
+        .btn-secondary:hover { background-color: #475569; }
+        .btn-danger { background-color: #ef4444; transition: background-color 0.2s; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .comment-box { border-left: 4px solid #6366f1; padding-left: 1rem; }
+        .page-content { display: none; }
+        .header-container { display: flex; flex-direction: column; }
+        @media (min-width: 768px) { .header-container { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .profile-pic { width: 32px; height: 32px; border-radius: 9999px; object-fit: cover; border: 2px solid white; cursor: pointer; transition: transform 0.2s; }
+        .profile-pic:hover { transform: scale(1.1); }
+        .profile-initials { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 9999px; background-color: #a78bfa; color: white; font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: transform 0.2s; }
+        .tier-6-text {
+            background-image: linear-gradient(to right, #ef4444, #f59e0b, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
         }
     </style>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js"></script>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen flex flex-col">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-gray-200 p-4 sticky top-0 z-10">
-        <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <h1 class="text-xl font-bold text-blue-600">SimuSearch</h1>
-                <div id="device-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                    Cihaz Modu: Desktop
-                </div>
-            </div>
-            
-            <div class="relative w-full md:w-2/3">
-                <div class="search-container flex items-center bg-white border border-gray-300 rounded-full px-5 py-2">
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
-                    <input type="text" id="search-input" placeholder="Bilgisayar modunda ara..." class="w-full ml-3 outline-none bg-transparent text-sm md:text-base">
-                    <button id="search-btn" class="ml-2 text-blue-500 font-medium hover:text-blue-700">Ara</button>
-                </div>
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center p-4" onclick="closeModal(event)">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="modal-body" class="text-gray-600 mb-6"></p>
+            <div id="modal-actions" class="flex justify-end space-x-3">
+                <button onclick="closeModal()" id="modal-cancel" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 transition"></button>
+                <button onclick="modalCallback()" id="modal-confirm" class="btn-danger text-white px-4 py-2 rounded-lg font-medium transition"></button>
             </div>
         </div>
-    </header>
-
-    <main class="max-w-5xl mx-auto p-4 mt-4">
-        <!-- Bilgi Paneli -->
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-8 text-sm text-blue-800">
-            <p><strong>Sistem Notu:</strong> Bu sayfa, kendisini dış dünyaya bir "Masaüstü Bilgisayar" (Windows/Mac) olarak raporlayacak şekilde konfigüre edilmiştir. Aşağıdaki sonuçlar gerçek zamanlı Google Search verileridir.</p>
-        </div>
-
-        <!-- Arama Sonuçları Alanı -->
-        <div id="results-area" class="space-y-2">
-            <div class="text-gray-500 text-center py-20">
-                <p>Henüz bir arama yapmadınız. Yukarıdaki kutucuğu kullanarak başlayın.</p>
+    </div>
+    
+    <!-- Profil Modal -->
+    <div id="profile-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 hidden items-center justify-center p-4" onclick="closeProfileModal(event)">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800" data-i18n="profileEditTitle"></h3>
+            <div class="flex flex-col items-center space-y-3 mb-6">
+                <img id="profile-preview" src="" class="w-24 h-24 rounded-full object-cover bg-gray-200 border-4 border-indigo-300">
+                <input type="file" id="profile-image-input" accept="image/*" class="w-full text-sm p-2 border rounded-lg" onchange="handleProfileImageUpload()">
+                <input type="hidden" id="profile-base64-image">
+                <p id="profile-image-status" class="text-sm"></p>
+            </div>
+            <div class="space-y-4">
+                <label for="profile-username" class="block text-sm font-medium text-gray-700" data-i18n="username"></label>
+                <input type="text" id="profile-username" data-i18n-placeholder="username" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm">
+                <p id="profile-save-status" class="text-sm"></p>
+            </div>
+            <div class="flex justify-end space-x-3 mt-8">
+                <button onclick="closeProfileModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium" data-i18n="modalCancel"></button>
+                <button onclick="saveProfile()" class="btn-primary text-white px-4 py-2 rounded-lg font-medium" data-i18n="saveProfile"></button>
             </div>
         </div>
-    </main>
+    </div>
 
-    <script>
-        const apiKey = ""; // Otomatik olarak sağlanacak
-        const searchInput = document.getElementById('search-input');
-        const searchBtn = document.getElementById('search-btn');
-        const resultsArea = document.getElementById('results-area');
-
-        // Cihaz Bilgisi Manipülasyonu (Kendini PC gibi gösterme simülasyonu)
-        // Not: Gerçek User-Agent readonly'dir ancak uygulamalar bazen navigator özelliklerine bakar
-        Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-        Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
-
-        async function performSearch(query) {
-            if (!query) return;
-
-            // Loading State
-            resultsArea.innerHTML = `
-                <div class="space-y-4">
-                    ${[1,2,3].map(() => `
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <div class="h-4 w-1/3 skeleton rounded mb-2"></div>
-                            <div class="h-6 w-2/3 skeleton rounded mb-2"></div>
-                            <div class="h-4 w-full skeleton rounded"></div>
-                        </div>
-                    `).join('')}
+    <div id="app" class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full">
+        <header class="bg-indigo-700 text-white p-4 rounded-xl shadow-2xl mb-8 header-container">
+            <h1 class="text-3xl font-extrabold tracking-tight" data-i18n="wikiTitle"></h1>
+            <div class="flex flex-col md:flex-row md:items-center md:space-x-6 w-full md:w-auto">
+                <nav id="main-nav" class="flex space-x-4 mb-3 md:mb-0 text-sm md:text-base">
+                    <button onclick="showPage('wiki')" class="hover:text-indigo-200 transition font-medium border-b-2 border-transparent hover:border-indigo-200 pb-1" data-i18n="home"></button>
+                    <button id="admin-link" onclick="showPage('admin')" class="hidden hover:text-indigo-200 transition font-medium border-b-2 border-transparent hover:border-indigo-200 pb-1" data-i18n="adminPanel"></button>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <select id="lang-selector" onchange="setLanguage(this.value)" class="bg-indigo-600 border border-indigo-500 text-white rounded-lg p-1 text-sm cursor-pointer hover:bg-indigo-500">
+                        <option value="tr">TR</option>
+                        <option value="en">EN</option>
+                        <option value="es">ES</option>
+                        <option value="de">DE</option>
+                    </select>
+                    <div id="auth-status" class="flex items-center space-x-3"></div>
                 </div>
-            `;
+            </div>
+        </header>
 
-            try {
-                let retries = 0;
-                const maxRetries = 5;
-                let response;
+        <main id="content-area">
+            <!-- Wiki Home -->
+            <section id="page-wiki" class="page-content hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
+                    <span data-i18n="wikiContents"></span>
+                    <span id="current-category-title" class="text-indigo-600 ml-2"></span>
+                </h2>
+                <div id="wiki-category-selector" class="flex flex-wrap gap-3 mb-8">
+                    <button onclick="loadWikiContent('blocks')" data-category="blocks" class="btn-primary text-white px-5 py-2 rounded-full font-semibold shadow-lg" data-i18n="blocks"></button>
+                    <button onclick="loadWikiContent('cargoes')" data-category="cargoes" class="btn-primary text-white px-5 py-2 rounded-full font-semibold shadow-lg" data-i18n="cargoes"></button>
+                    <button onclick="loadWikiContent('maps')" data-category="maps" class="btn-primary text-white px-5 py-2 rounded-full font-semibold shadow-lg" data-i18n="maps"></button>
+                </div>
+                <div class="mb-6 relative">
+                    <input type="search" id="search-input" oninput="handleSearch()" data-i18n-placeholder="searchPlaceholder" class="w-full p-3 pl-10 border border-gray-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <div class="absolute left-3 top-3.5 text-gray-400">🔍</div>
+                </div>
+                <div id="wiki-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            </section>
 
-                while (retries < maxRetries) {
-                    try {
-                        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: query }] }],
-                                tools: [{ "google_search": {} }]
-                            })
-                        });
-                        if (response.ok) break;
-                    } catch (e) {}
-                    retries++;
-                    await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
-                }
-
-                const data = await response.json();
-                const attributions = data.candidates?.[0]?.groundingMetadata?.groundingAttributions || [];
-
-                displayResults(attributions, query);
-            } catch (error) {
-                resultsArea.innerHTML = `
-                    <div class="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
-                        Arama sonuçları alınırken bir hata oluştu. Lütfen tekrar deneyin.
+            <!-- Detail Page -->
+            <section id="page-detail" class="page-content hidden">
+                <button onclick="showPage('wiki')" class="text-indigo-600 hover:text-indigo-800 transition mb-6 flex items-center font-medium">
+                    ← <span data-i18n="back" class="ml-1"></span>
+                </button>
+                <div id="detail-content" class="wiki-card p-6 md:p-10 rounded-xl shadow-xl"></div>
+                <div class="mt-10 p-6 bg-white rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4 text-gray-800" data-i18n="comments"></h3>
+                    <div id="comments-list" class="space-y-4 mb-6"></div>
+                    <div id="comment-form-container" class="hidden border-t pt-4">
+                        <textarea id="comment-text" rows="3" data-i18n-placeholder="writeCommentPlaceholder" class="w-full p-3 border border-gray-300 rounded-lg"></textarea>
+                        <button onclick="addComment()" class="btn-primary text-white px-4 py-2 rounded-lg mt-3 font-medium" data-i18n="addComment"></button>
                     </div>
-                `;
+                    <p id="comment-login-message" class="text-red-600 hidden font-semibold p-3 bg-red-100 rounded-lg text-center" data-i18n="loginToComment"></p>
+                </div>
+            </section>
+
+            <!-- Auth Page -->
+            <section id="page-auth" class="page-content hidden flex justify-center items-center h-[60vh]">
+                <div class="wiki-card p-8 rounded-xl shadow-2xl w-full max-w-md">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center" data-i18n="loginSignUp"></h2>
+                    <form id="auth-form" class="space-y-6">
+                        <input type="email" id="auth-email" data-i18n-placeholder="emailPlaceholder" required class="w-full p-3 border border-gray-300 rounded-lg">
+                        <input type="password" id="auth-password" data-i18n-placeholder="passwordPlaceholder" required class="w-full p-3 border border-gray-300 rounded-lg">
+                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-bold" data-i18n="login"></button>
+                        <button type="button" onclick="handleSignUp()" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-bold" data-i18n="signUp"></button>
+                        <p id="auth-message" class="text-sm text-center mt-4"></p>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Admin Page -->
+            <section id="page-admin" class="page-content hidden">
+                <div class="wiki-card p-6 md:p-8 rounded-xl shadow-xl">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2" data-i18n="adminPanel"></h2>
+                    <div id="admin-controls" class="hidden space-y-6">
+                        <div class="space-y-4 p-5 bg-indigo-50 rounded-xl border border-indigo-200">
+                            <h3 id="admin-form-title" class="text-xl font-bold text-indigo-700" data-i18n="addContent"></h3>
+                            <select id="content-type" class="w-full p-3 border rounded-lg">
+                                <option value="blocks" data-i18n="blocks"></option>
+                                <option value="cargoes" data-i18n="cargoes"></option>
+                                <option value="maps" data-i18n="maps"></option>
+                            </select>
+                            <select id="content-tier" class="w-full p-3 border rounded-lg">
+                                <option value="" disabled selected data-i18n="selectTier"></option>
+                                <option value="1">1 (Kırmızı/Red)</option>
+                                <option value="2">2 (Turuncu/Orange)</option>
+                                <option value="3">3 (Sarı/Yellow)</option>
+                                <option value="4">4 (Mavi/Blue)</option>
+                                <option value="5">5 (Mor/Purple)</option>
+                                <option value="6">6 (Gökkuşağı/Rainbow)</option>
+                            </select>
+                            <input type="text" id="content-title" data-i18n-placeholder="title" class="w-full p-3 border rounded-lg">
+                            <textarea id="content-text-admin" rows="8" data-i18n-placeholder="contentText" class="w-full p-3 border rounded-lg"></textarea>
+                            <div class="pt-4 border-t">
+                                <label class="block text-sm font-medium mb-2" data-i18n="imageBase64"></label>
+                                <input type="file" id="content-image-input" accept="image/*" class="w-full p-2 border bg-white rounded-lg">
+                                <input type="hidden" id="content-base64-image">
+                                <button onclick="handleImageUpload()" class="btn-primary text-white px-4 py-2 rounded-lg mt-3" data-i18n="convertImage"></button>
+                            </div>
+                            <input type="hidden" id="editing-item-path">
+                            <p id="save-status" class="text-sm mt-4 font-semibold"></p>
+                            <button onclick="saveContent()" class="w-full btn-primary text-white py-3 rounded-lg font-bold" data-i18n="saveContent"></button>
+                            <button type="button" onclick="cancelEdit()" id="cancel-edit-button" class="w-full btn-secondary text-white py-2 rounded-lg mt-2 hidden" data-i18n="cancelEdit"></button>
+                        </div>
+                    </div>
+                    <p id="admin-message" class="text-red-500 hidden" data-i18n="adminAccessOnly"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, push, serverTimestamp, remove, get, update, set } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcLP7390AotwSTUzZLTOmiglNs1a1OxxU",
+            authDomain: "yarreboardedwiki.firebaseapp.com",
+            databaseURL: "https://yarreboardedwiki-default-rtdb.firebaseio.com/",
+            projectId: "yarreboardedwiki",
+            storageBucket: "yarreboardedwiki.firebasestorage.app",
+            messagingSenderId: "365304875142",
+            appId: "1:365304875142:web:5d962e22c249917745a907"
+        };
+        const adminEmail = "selimhanlafci121@gmail.com";
+        const GUEST_EMAIL = "selimhanlafci008@gmail.com";
+        const GUEST_PASSWORD = "selam..lok";
+
+        const translations = {
+            tr: {
+                wikiTitle: "YarReboarded Wiki", home: "Anasayfa", adminPanel: "Admin Paneli", logout: "Çıkış Yap", login: "Giriş Yap", signUp: "Kayıt Ol",
+                guestMode: "Misafir Modu", wikiContents: "İçerikler", blocks: "Bloklar", cargoes: "Kargolar", maps: "Haritalar",
+                selectCategory: "Kategori seçin.", loadingContent: "Yükleniyor...", back: "Geri", viewDetails: "Detaylar",
+                comments: "Yorumlar", noComments: "Yorum yok.", writeCommentPlaceholder: "Yorum yazın...", addComment: "Ekle",
+                loginToComment: "Yorum için giriş yapın.", emailPlaceholder: "E-posta", passwordPlaceholder: "Şifre",
+                adminAccessOnly: "Sadece admin.", addContent: "Yeni İçerik", addEditContent: "Düzenle", cancelEdit: "İptal",
+                title: "Başlık", contentText: "Metin", imageBase64: "Görüntü", convertImage: "Görseli Dönüştür",
+                saveContent: "Kaydet", delete: "Sil", author: "Yazar", anonymous: "Anonim", loginSignUp: "Giriş / Kayıt",
+                searchPlaceholder: "Ara...", searchNoResults: "Sonuç yok.", profileEditTitle: "Profili Düzenle",
+                username: "Kullanıcı Adı", saveProfile: "Kaydet", modalCancel: "İptal", selectTier: "Kademe Seç",
+                modalOk: "Tamam", modalConfirmTitle: "Onay", modalDeleteTitle: "Silme Onayı", deleteConfirmContent: "Silinsin mi?",
+                statusLoggingIn: "Giriş yapılıyor...", statusConverting: "Dönüştürülüyor...", statusSuccessSave: (t) => `${t} kaydedildi!`
+            },
+            en: {
+                wikiTitle: "YarReboarded Wiki", home: "Home", adminPanel: "Admin Panel", logout: "Logout", login: "Login", signUp: "Sign Up",
+                guestMode: "Guest Mode", wikiContents: "Contents", blocks: "Blocks", cargoes: "Cargoes", maps: "Maps",
+                selectCategory: "Select a category.", loadingContent: "Loading...", back: "Back", viewDetails: "Details",
+                comments: "Comments", noComments: "No comments.", writeCommentPlaceholder: "Write a comment...", addComment: "Add",
+                loginToComment: "Login to comment.", emailPlaceholder: "Email", passwordPlaceholder: "Password",
+                adminAccessOnly: "Admin only.", addContent: "New Content", addEditContent: "Edit", cancelEdit: "Cancel",
+                title: "Title", contentText: "Text", imageBase64: "Image", convertImage: "Convert Image",
+                saveContent: "Save", delete: "Delete", author: "Author", anonymous: "Anonymous", loginSignUp: "Login / Sign Up",
+                searchPlaceholder: "Search...", searchNoResults: "No results.", profileEditTitle: "Edit Profile",
+                username: "Username", saveProfile: "Save", modalCancel: "Cancel", selectTier: "Select Tier",
+                modalOk: "OK", modalConfirmTitle: "Confirm", modalDeleteTitle: "Delete Confirmation", deleteConfirmContent: "Delete this?",
+                statusLoggingIn: "Logging in...", statusConverting: "Converting...", statusSuccessSave: (t) => `${t} saved!`
+            },
+            es: {
+                wikiTitle: "YarReboarded Wiki", home: "Inicio", adminPanel: "Panel Admin", logout: "Cerrar sesión", login: "Entrar", signUp: "Registrarse",
+                guestMode: "Modo Invitado", wikiContents: "Contenidos", blocks: "Bloques", cargoes: "Cargas", maps: "Mapas",
+                selectCategory: "Seleccione una categoría.", loadingContent: "Cargando...", back: "Volver", viewDetails: "Detalles",
+                comments: "Comentarios", noComments: "Sin comentarios.", writeCommentPlaceholder: "Escribe un comentario...", addComment: "Añadir",
+                loginToComment: "Inicia sesión para comentar.", emailPlaceholder: "Correo", passwordPlaceholder: "Contraseña",
+                adminAccessOnly: "Solo administradores.", addContent: "Nuevo Contenido", addEditContent: "Editar", cancelEdit: "Cancelar",
+                title: "Título", contentText: "Texto", imageBase64: "Imagen", convertImage: "Convertir Imagen",
+                saveContent: "Guardar", delete: "Eliminar", author: "Autor", anonymous: "Anónimo", loginSignUp: "Ingreso / Registro",
+                searchPlaceholder: "Buscar...", searchNoResults: "Sin resultados.", profileEditTitle: "Editar Perfil",
+                username: "Usuario", saveProfile: "Guardar", modalCancel: "Cancelar", selectTier: "Nivel",
+                modalOk: "Aceptar", modalConfirmTitle: "Confirmar", modalDeleteTitle: "Eliminar", deleteConfirmContent: "¿Eliminar esto?",
+                statusLoggingIn: "Entrando...", statusConverting: "Convirtiendo...", statusSuccessSave: (t) => `${t} guardado!`
+            },
+            de: {
+                wikiTitle: "YarReboarded Wiki", home: "Startseite", adminPanel: "Admin-Bereich", logout: "Abmelden", login: "Anmelden", signUp: "Registrieren",
+                guestMode: "Gastmodus", wikiContents: "Inhalte", blocks: "Blöcke", cargoes: "Frachten", maps: "Karten",
+                selectCategory: "Kategorie wählen.", loadingContent: "Laden...", back: "Zurück", viewDetails: "Details",
+                comments: "Kommentare", noComments: "Keine Kommentare.", writeCommentPlaceholder: "Kommentar schreiben...", addComment: "Hinzufügen",
+                loginToComment: "Anmelden zum Kommentieren.", emailPlaceholder: "E-Mail", passwordPlaceholder: "Passwort",
+                adminAccessOnly: "Nur für Admins.", addContent: "Neuer Inhalt", addEditContent: "Bearbeiten", cancelEdit: "Abbrechen",
+                title: "Titel", contentText: "Text", imageBase64: "Bild", convertImage: "Bild umwandeln",
+                saveContent: "Speichern", delete: "Löschen", author: "Autor", anonymous: "Anonym", loginSignUp: "Anmelden / Registrieren",
+                searchPlaceholder: "Suche...", searchNoResults: "Keine Ergebnisse.", profileEditTitle: "Profil bearbeiten",
+                username: "Benutzername", saveProfile: "Speichern", modalCancel: "Abbrechen", selectTier: "Stufe wählen",
+                modalOk: "OK", modalConfirmTitle: "Bestätigen", modalDeleteTitle: "Löschen bestätigen", deleteConfirmContent: "Löschen?",
+                statusLoggingIn: "Anmeldung...", statusConverting: "Konvertierung...", statusSuccessSave: (t) => `${t} gespeichert!`
             }
+        };
+
+        let lang = 'tr';
+        const app_init = initializeApp(firebaseConfig);
+        const auth = getAuth(app_init);
+        const db = getDatabase(app_init);
+
+        let currentUser = null;
+        let isAdmin = false;
+        let currentCategory = 'blocks';
+        let currentContentPath = null;
+        let allDataCache = {};
+        let currentUserProfile = { username: '', photo: '' };
+
+        function translateUI() {
+            const current = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (current[key]) el.textContent = current[key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (current[key]) el.placeholder = current[key];
+            });
+            document.getElementById('modal-cancel').textContent = current.modalCancel;
+            document.getElementById('modal-confirm').textContent = current.modalOk;
         }
 
-        function displayResults(results, query) {
-            if (results.length === 0) {
-                resultsArea.innerHTML = `<div class="text-center py-10 text-gray-500">"${query}" için sonuç bulunamadı.</div>`;
-                return;
+        window.setLanguage = (newLang) => {
+            lang = newLang;
+            translateUI();
+            if (document.getElementById('page-wiki').classList.contains('block')) loadWikiContent(currentCategory);
+        };
+
+        // Auth Logic
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            isAdmin = user && user.email === adminEmail;
+            if (user) {
+                const snapshot = await get(ref(db, `userProfiles/${user.uid}`));
+                currentUserProfile = snapshot.exists() ? snapshot.val() : { username: user.email.split('@')[0], photo: '' };
             }
+            updateAuthUI();
+        });
 
-            resultsArea.innerHTML = `<p class="text-sm text-gray-600 mb-4">Yaklaşık ${results.length} sonuç bulundu.</p>`;
-
-            results.forEach(res => {
-                const title = res.web?.title || "Başlıksız Sonuç";
-                const url = res.web?.uri || "#";
-                const displayUrl = url.length > 60 ? url.substring(0, 60) + "..." : url;
-
-                const card = document.createElement('div');
-                card.className = 'result-card bg-white p-6 mb-2 rounded-xl shadow-sm hover:shadow-md transition-shadow';
-                card.innerHTML = `
-                    <div class="text-xs text-gray-500 mb-1 flex items-center gap-2">
-                        <span>${displayUrl}</span>
+        function updateAuthUI() {
+            const statusDiv = document.getElementById('auth-status');
+            const current = translations[lang];
+            if (currentUser) {
+                const name = currentUserProfile.username || currentUser.email.split('@')[0];
+                statusDiv.innerHTML = `
+                    <div class="flex items-center space-x-2" onclick="openProfileModal()">
+                        <span class="text-sm cursor-pointer">${name}</span>
+                        ${currentUserProfile.photo ? `<img src="${currentUserProfile.photo}" class="profile-pic">` : `<div class="profile-initials">${name[0].toUpperCase()}</div>`}
                     </div>
-                    <a href="${url}" target="_blank" class="text-xl text-blue-700 hover:underline font-medium block mb-2">
-                        ${title}
-                    </a>
-                    <p class="text-sm text-gray-600 leading-relaxed">
-                        Bu kaynak, bilgisayar tabanlı arama motoru optimizasyonu (SEO) kriterlerine göre listelenen güvenilir bir web sonucudur.
-                    </p>
+                    <button onclick="handleSignOut()" class="bg-red-500 px-3 py-1 rounded-full text-sm">${current.logout}</button>
                 `;
-                resultsArea.appendChild(card);
+                document.getElementById('comment-form-container').classList.remove('hidden');
+                document.getElementById('comment-login-message').classList.add('hidden');
+            } else {
+                statusDiv.innerHTML = `
+                    <button onclick="showPage('auth')" class="bg-indigo-500 px-4 py-2 rounded-full text-sm">${current.login}</button>
+                    <button onclick="handleGuestLogin()" class="bg-green-500 px-4 py-2 rounded-full text-sm">${current.guestMode}</button>
+                `;
+                document.getElementById('comment-form-container').classList.add('hidden');
+                document.getElementById('comment-login-message').classList.remove('hidden');
+            }
+            document.getElementById('admin-link').classList.toggle('hidden', !isAdmin);
+        }
+
+        window.handleSignOut = () => signOut(auth);
+        window.handleGuestLogin = () => signInWithEmailAndPassword(auth, GUEST_EMAIL, GUEST_PASSWORD);
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            const target = document.getElementById(`page-${id}`);
+            target.classList.remove('hidden');
+            if (id === 'auth') target.classList.add('flex'); else target.classList.add('block');
+            if (id === 'wiki') loadWikiContent(currentCategory);
+            translateUI();
+        };
+
+        window.loadWikiContent = (cat) => {
+            currentCategory = cat;
+            const current = translations[lang];
+            const list = document.getElementById('wiki-list');
+            list.innerHTML = `<p class="col-span-full text-center">${current.loadingContent}</p>`;
+            
+            onValue(ref(db, cat), (snap) => {
+                const data = snap.val() || {};
+                allDataCache[cat] = Object.entries(data).map(([id, val]) => ({ id, category: cat, ...val })).reverse();
+                renderWikiList();
+            });
+        };
+
+        function renderWikiList() {
+            const list = document.getElementById('wiki-list');
+            const current = translations[lang];
+            const items = allDataCache[currentCategory] || [];
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const filtered = items.filter(i => i.title.toLowerCase().includes(search) || i.content.toLowerCase().includes(search));
+
+            list.innerHTML = filtered.length ? '' : `<p class="col-span-full text-center">${current.searchNoResults}</p>`;
+            filtered.forEach(item => {
+                const tier = parseInt(item.tier);
+                const tierClass = tier === 6 ? 'tier-6-text' : (tier === 5 ? 'text-purple-600' : (tier === 4 ? 'text-blue-600' : 'text-gray-500'));
+                const div = document.createElement('div');
+                div.className = 'wiki-card p-4 rounded-xl shadow flex flex-col cursor-pointer';
+                div.innerHTML = `
+                    <img src="${item.base64Image || 'https://placehold.co/400x200?text=No+Image'}" class="w-full h-32 object-cover rounded mb-2">
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold text-lg">${item.title}</h3>
+                        ${item.tier ? `<span class="text-xs font-black ${tierClass}">T${item.tier}</span>` : ''}
+                    </div>
+                    <p class="text-sm text-gray-500 line-clamp-2 mt-1">${item.content}</p>
+                    <button onclick="showDetail('${item.category}/${item.id}')" class="mt-auto text-indigo-600 font-bold text-sm text-right">${current.viewDetails}</button>
+                `;
+                list.appendChild(div);
             });
         }
 
-        searchBtn.addEventListener('click', () => performSearch(searchInput.value));
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') performSearch(searchInput.value);
-        });
+        window.handleSearch = () => renderWikiList();
+
+        window.showDetail = (path) => {
+            currentContentPath = path;
+            showPage('detail');
+            onValue(ref(db, path), (snap) => {
+                const item = snap.val();
+                const current = translations[lang];
+                if (!item) return;
+                document.getElementById('detail-content').innerHTML = `
+                    <h2 class="text-3xl font-bold">${item.title}</h2>
+                    <p class="text-xs text-gray-400 mb-4">${current.author}: ${item.authorName || current.anonymous}</p>
+                    <img src="${item.base64Image || ''}" class="w-full max-h-80 object-contain mb-4">
+                    <div class="whitespace-pre-wrap">${item.content}</div>
+                `;
+                renderComments(item.comments || {});
+            });
+        };
+
+        function renderComments(comments) {
+            const list = document.getElementById('comments-list');
+            const current = translations[lang];
+            list.innerHTML = '';
+            Object.values(comments).reverse().forEach(c => {
+                const d = document.createElement('div');
+                d.className = 'comment-box bg-gray-50 p-2 rounded mb-2';
+                d.innerHTML = `<p class="text-sm">${c.text}</p><span class="text-xs font-bold text-indigo-400">@${c.userName || '??'}</span>`;
+                list.appendChild(d);
+            });
+        }
+
+        window.addComment = async () => {
+            const txt = document.getElementById('comment-text');
+            if (!txt.value.trim()) return;
+            await push(ref(db, `${currentContentPath}/comments`), {
+                text: txt.value,
+                userName: currentUserProfile.username,
+                timestamp: serverTimestamp()
+            });
+            txt.value = '';
+        };
+
+        // Modals & Profile
+        let resolveModal = null;
+        window.showModal = (title, body, confirm = false) => {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').textContent = body;
+            document.getElementById('modal-cancel').classList.toggle('hidden', !confirm);
+            document.getElementById('custom-modal').classList.remove('hidden');
+            document.getElementById('custom-modal').classList.add('flex');
+            return new Promise(r => resolveModal = r);
+        };
+        window.closeModal = () => { document.getElementById('custom-modal').classList.add('hidden'); if(resolveModal) resolveModal(false); };
+        window.modalCallback = () => { document.getElementById('custom-modal').classList.add('hidden'); if(resolveModal) resolveModal(true); };
+
+        window.openProfileModal = () => {
+            document.getElementById('profile-username').value = currentUserProfile.username;
+            document.getElementById('profile-preview').src = currentUserProfile.photo || '';
+            document.getElementById('profile-modal').classList.remove('hidden');
+            document.getElementById('profile-modal').classList.add('flex');
+        };
+        window.closeProfileModal = () => document.getElementById('profile-modal').classList.add('hidden');
+        window.handleProfileImageUpload = () => {
+            const file = document.getElementById('profile-image-input').files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('profile-base64-image').value = e.target.result;
+                document.getElementById('profile-preview').src = e.target.result;
+            };
+            if(file) reader.readAsDataURL(file);
+        };
+        window.saveProfile = async () => {
+            const name = document.getElementById('profile-username').value;
+            const img = document.getElementById('profile-base64-image').value;
+            await set(ref(db, `userProfiles/${currentUser.uid}`), { username: name, photo: img });
+            currentUserProfile = { username: name, photo: img };
+            updateAuthUI();
+            closeProfileModal();
+        };
+
+        // Admin Save
+        window.handleImageUpload = () => {
+            const file = document.getElementById('content-image-input').files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => document.getElementById('content-base64-image').value = e.target.result;
+            if(file) reader.readAsDataURL(file);
+        };
+
+        window.saveContent = async () => {
+            const type = document.getElementById('content-type').value;
+            const title = document.getElementById('content-title').value;
+            const content = document.getElementById('content-text-admin').value;
+            const img = document.getElementById('content-base64-image').value;
+            const tier = document.getElementById('content-tier').value;
+            if(!title || !content) return;
+            
+            await push(ref(db, type), {
+                title, content, tier, base64Image: img,
+                authorName: currentUserProfile.username,
+                timestamp: serverTimestamp()
+            });
+            showPage('wiki');
+        };
+
+        window.onload = () => { translateUI(); showPage('wiki'); };
     </script>
 </body>
 </html>
