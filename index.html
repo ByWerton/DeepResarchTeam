@@ -3,165 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="wikiTitle">YarReboarded Wiki</title>
+    <title>YarReboarded Wiki</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
-        .wiki-card { background-color: white; border: 1px solid #e2e8f0; transition: all 0.3s; }
-        .wiki-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .btn-primary { background-color: #4f46e5; transition: background-color 0.2s; }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; overflow-x: hidden; }
+        .wiki-card { background-color: white; border: 1px solid #e2e8f0; transition: all 0.3s; height: 100%; display: flex; flex-direction: column; }
+        .wiki-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .btn-primary { background-color: #4f46e5; color: white; transition: 0.2s; }
         .btn-primary:hover { background-color: #4338ca; }
-        .btn-secondary { background-color: #64748b; transition: background-color 0.2s; }
-        .btn-secondary:hover { background-color: #475569; }
-        .btn-danger { background-color: #ef4444; transition: background-color 0.2s; }
-        .btn-danger:hover { background-color: #dc2626; }
-        .comment-box { border-left: 4px solid #6366f1; padding-left: 1rem; }
-        .page-content { display: none; }
-        .header-container { display: flex; flex-direction: column; }
-        @media (min-width: 768px) { .header-container { flex-direction: row; justify-content: space-between; align-items: center; } }
-        .profile-pic { width: 32px; height: 32px; border-radius: 9999px; object-fit: cover; border: 2px solid white; cursor: pointer; transition: transform 0.2s; }
-        .profile-pic:hover { transform: scale(1.1); }
-        .profile-initials { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 9999px; background-color: #a78bfa; color: white; font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: transform 0.2s; }
         .tier-6-text {
-            background-image: linear-gradient(to right, #ef4444, #f59e0b, #3b82f6, #8b5cf6);
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #3b82f6, #8b5cf6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-weight: 900;
         }
+        .page-content { display: none; }
+        .page-content.active { display: block; }
+        .page-content.flex-active { display: flex; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-btn.active { background-color: #4f46e5; color: white; }
     </style>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js"></script>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen">
 
-    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center p-4" onclick="closeModal(event)">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
-            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800"></h3>
+    <!-- Modal: Notifications -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
             <p id="modal-body" class="text-gray-600 mb-6"></p>
-            <div id="modal-actions" class="flex justify-end space-x-3">
-                <button onclick="closeModal()" id="modal-cancel" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 transition">İptal</button>
-                <button onclick="modalCallback()" id="modal-confirm" class="btn-danger text-white px-4 py-2 rounded-lg font-medium transition">Onayla</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="profile-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 hidden items-center justify-center p-4" onclick="closeProfileModal(event)">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
-            <h3 class="text-2xl font-bold mb-6 text-gray-800" data-i18n="profileEditTitle">Profili Düzenle</h3>
-            <div class="flex flex-col items-center space-y-3 mb-6">
-                <img id="profile-preview" src="" alt="Profile" class="w-24 h-24 rounded-full object-cover bg-gray-200 border-4 border-indigo-300">
-                <input type="file" id="profile-image-input" accept="image/*" class="w-full text-sm p-2 border rounded-lg" onchange="handleProfileImageUpload()">
-                <input type="hidden" id="profile-base64-image">
-                <p id="profile-image-status" class="text-sm"></p>
-            </div>
-            <div class="space-y-4">
-                <label for="profile-username" class="block text-sm font-medium text-gray-700" data-i18n="username">Kullanıcı Adı</label>
-                <input type="text" id="profile-username" data-i18n-placeholder="username" class="w-full p-3 border border-gray-300 rounded-lg">
-                <p id="profile-save-status" class="text-sm"></p>
-            </div>
-            <div class="flex justify-end space-x-3 mt-8">
-                <button onclick="closeProfileModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium" data-i18n="modalCancel">İptal</button>
-                <button onclick="saveProfile()" class="btn-primary text-white px-4 py-2 rounded-lg font-medium" data-i18n="saveProfile">Profili Kaydet</button>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg font-medium">Tamam</button>
             </div>
         </div>
     </div>
 
-    <div id="app" class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full">
-        <header class="bg-indigo-700 text-white p-4 rounded-xl shadow-2xl mb-8 header-container">
-            <div class="flex items-center justify-between w-full md:w-auto mb-4 md:mb-0">
-                <h1 class="text-3xl font-extrabold tracking-tight" data-i18n="wikiTitle">YarReboarded Wiki</h1>
-            </div>
-            <div class="flex flex-col md:flex-row md:items-center md:space-x-6 w-full md:w-auto">
-                <nav id="main-nav" class="flex space-x-4 mb-3 md:mb-0 text-sm md:text-base">
-                    <button onclick="showPage('wiki')" class="hover:text-indigo-200 transition font-medium" data-i18n="home">Wiki Anasayfa</button>
-                    <button id="admin-link" onclick="showPage('admin')" class="hidden hover:text-indigo-200 transition font-medium" data-i18n="adminPanel">Admin Paneli</button>
-                </nav>
-                <div class="flex items-center space-x-3">
-                    <select id="lang-selector" onchange="setLanguage(this.value)" class="bg-indigo-600 border border-indigo-500 text-white rounded-lg p-1 text-sm">
-                        <option value="tr">TR</option>
-                        <option value="en">EN</option>
-                        <option value="es">ES</option>
-                    </select>
-                    <div id="auth-status" class="flex items-center space-x-3"></div>
+    <div id="app" class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="bg-indigo-700 text-white p-4 md:p-6 rounded-2xl shadow-xl mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-white/20 rounded-lg">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    </div>
+                    <h1 class="text-2xl font-black tracking-tighter" data-i18n="wikiTitle">YarReboarded Wiki</h1>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center gap-4">
+                    <nav class="flex gap-4 font-semibold text-sm">
+                        <button onclick="showPage('wiki')" class="hover:text-indigo-200 transition" data-i18n="home">Anasayfa</button>
+                        <button id="admin-link" onclick="showPage('admin')" class="hidden hover:text-indigo-200 transition" data-i18n="adminPanel">Admin Paneli</button>
+                    </nav>
+                    <div class="flex items-center gap-3">
+                        <select id="lang-selector" onchange="setLanguage(this.value)" class="bg-indigo-600 text-white border-none rounded-lg text-xs font-bold p-2 outline-none">
+                            <option value="tr">TR</option>
+                            <option value="en">EN</option>
+                            <option value="es">ES</option>
+                        </select>
+                        <div id="auth-status" class="flex items-center gap-2"></div>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <main id="content-area">
-            <section id="page-wiki" class="page-content hidden block">
-                <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
-                    <span data-i18n="wikiContents">Wiki İçerikleri</span>
-                    <span id="current-category-title" class="text-indigo-600 ml-2"></span>
-                </h2>
-                <div id="wiki-category-selector" class="flex flex-wrap gap-3 mb-8">
-                    <button onclick="loadWikiContent('blocks')" data-category="blocks" class="btn-primary text-white px-5 py-2 rounded-full font-semibold" data-i18n="blocks">Blocks</button>
-                    <button onclick="loadWikiContent('cargoes')" data-category="cargoes" class="btn-primary text-white px-5 py-2 rounded-full font-semibold" data-i18n="cargoes">Kargolar</button>
-                    <button onclick="loadWikiContent('maps')" data-category="maps" class="btn-primary text-white px-5 py-2 rounded-full font-semibold" data-i18n="maps">Haritalar</button>
-                </div>
-                <div class="mb-6 relative">
-                    <input type="search" id="search-input" oninput="handleSearch()" data-i18n-placeholder="searchPlaceholder" class="w-full p-3 pl-10 border border-gray-300 rounded-xl">
-                </div>
-                <div id="wiki-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
-            </section>
-
-            <section id="page-detail" class="page-content hidden block">
-                <button onclick="showPage('wiki')" class="text-indigo-600 hover:text-indigo-800 transition mb-6 flex items-center font-medium">
-                    <span data-i18n="back">Geri Dön</span>
-                </button>
-                <div id="detail-content" class="wiki-card p-6 md:p-10 rounded-xl shadow-xl"></div>
-                <div class="mt-10 p-6 bg-white rounded-xl shadow-lg">
-                    <h3 class="text-2xl font-bold mb-4 text-gray-800" data-i18n="comments">Yorumlar</h3>
-                    <div id="comments-list" class="space-y-4 mb-6"></div>
-                    <div id="comment-form-container" class="hidden border-t pt-4">
-                        <textarea id="comment-text" rows="3" data-i18n-placeholder="writeCommentPlaceholder" class="w-full p-3 border border-gray-300 rounded-lg"></textarea>
-                        <button onclick="addComment()" class="btn-primary text-white px-4 py-2 rounded-lg mt-3" data-i18n="addComment">Yorum Ekle</button>
+        <main>
+            <!-- Page: Wiki List -->
+            <section id="page-wiki" class="page-content active">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                    <div id="wiki-category-selector" class="flex flex-wrap gap-2">
+                        <!-- Kategoriler buraya dinamik gelecek -->
                     </div>
-                    <p id="comment-login-message" class="text-red-600 hidden font-semibold p-3 bg-red-100 rounded-lg text-center" data-i18n="loginToComment"></p>
+                    <div class="relative w-full md:w-64">
+                        <input type="text" id="search-input" oninput="handleSearch()" data-i18n-placeholder="searchPlaceholder" class="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+                <div id="wiki-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+            </section>
+
+            <!-- Page: Detail -->
+            <section id="page-detail" class="page-content">
+                <button onclick="showPage('wiki')" class="flex items-center gap-2 text-indigo-600 font-bold mb-6 hover:translate-x-[-4px] transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <span data-i18n="back">Geri</span>
+                </button>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2">
+                        <div id="detail-content" class="bg-white rounded-2xl p-6 md:p-8 shadow-lg"></div>
+                    </div>
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-2xl p-6 shadow-lg">
+                            <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                                <span data-i18n="comments">Yorumlar</span>
+                            </h3>
+                            <div id="comments-list" class="space-y-4 max-h-[400px] overflow-y-auto mb-6 pr-2 text-sm"></div>
+                            <div id="comment-form-container" class="hidden space-y-3 border-t pt-4">
+                                <textarea id="comment-text" rows="3" data-i18n-placeholder="writeCommentPlaceholder" class="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm"></textarea>
+                                <button onclick="addComment()" class="w-full btn-primary py-2 rounded-xl font-bold" data-i18n="addComment">Gönder</button>
+                            </div>
+                            <p id="comment-login-message" class="text-center text-xs text-gray-500 hidden" data-i18n="loginToComment"></p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <section id="page-auth" class="page-content hidden flex justify-center items-center h-[70vh]">
-                <div class="wiki-card p-8 rounded-xl shadow-2xl w-full max-w-md">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center" data-i18n="loginSignUp">Giriş / Kayıt</h2>
-                    <form id="auth-form" class="space-y-6">
-                        <input type="email" id="auth-email" data-i18n-placeholder="emailPlaceholder" required class="w-full p-3 border border-gray-300 rounded-lg shadow-sm">
-                        <input type="password" id="auth-password" data-i18n-placeholder="passwordPlaceholder" required class="w-full p-3 border border-gray-300 rounded-lg shadow-sm">
-                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-bold text-lg" data-i18n="login">Giriş Yap</button>
-                        <button type="button" onclick="handleSignUp()" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-bold text-lg" data-i18n="signUp">Kayıt Ol</button>
-                        <p id="auth-message" class="text-sm text-center mt-4"></p>
+            <!-- Page: Auth -->
+            <section id="page-auth" class="page-content flex-active items-center justify-center min-h-[50vh]">
+                <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
+                    <h2 class="text-2xl font-black text-gray-800 mb-6 text-center" data-i18n="loginSignUp">Giriş / Kayıt</h2>
+                    <form onsubmit="handleAuth(event)" class="space-y-4">
+                        <input type="email" id="auth-email" required data-i18n-placeholder="emailPlaceholder" class="w-full p-3 rounded-xl border outline-none focus:border-indigo-500">
+                        <input type="password" id="auth-password" required data-i18n-placeholder="passwordPlaceholder" class="w-full p-3 rounded-xl border outline-none focus:border-indigo-500">
+                        <button type="submit" class="w-full btn-primary py-3 rounded-xl font-bold" data-i18n="login">Giriş Yap</button>
+                        <button type="button" onclick="handleSignUp()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold" data-i18n="signUp">Kayıt Ol</button>
                     </form>
                 </div>
             </section>
 
-            <section id="page-admin" class="page-content hidden">
-                <div class="wiki-card p-6 md:p-8 rounded-xl shadow-xl">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2" data-i18n="adminPanel">Admin Paneli</h2>
-                    <div id="admin-controls" class="hidden space-y-6">
-                        <div class="space-y-4 p-5 bg-indigo-50 rounded-xl border border-indigo-200">
-                            <h3 id="admin-form-title" class="text-xl font-bold text-indigo-700 border-b pb-2" data-i18n="addContent">Yeni İçerik Ekle</h3>
-                            <select id="content-type" class="w-full p-3 border rounded-lg shadow-sm">
-                                <option value="blocks" data-i18n="blocks">Block</option>
-                                <option value="cargoes" data-i18n="cargoes">Kargo</option>
-                                <option value="maps" data-i18n="maps">Harita</option>
-                            </select>
-                            <select id="content-tier" class="w-full p-3 border rounded-lg shadow-sm">
-                                <option value="" disabled selected data-i18n="selectTier">Kademe Seç</option>
-                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-                            </select>
-                            <input type="text" id="content-title" data-i18n-placeholder="title" required class="w-full p-3 border rounded-lg shadow-sm">
-                            <textarea id="content-text-admin" rows="8" data-i18n-placeholder="contentText" required class="w-full p-3 border rounded-lg shadow-sm"></textarea>
-                            <div class="pt-4 border-t border-indigo-200">
-                                <input type="file" id="content-image-input" accept="image/*" class="w-full p-2 border border-dashed border-gray-400 rounded-lg bg-white">
+            <!-- Page: Admin -->
+            <section id="page-admin" class="page-content">
+                <div class="bg-white rounded-2xl p-6 shadow-xl">
+                    <div class="flex gap-4 mb-6 border-b pb-4">
+                        <button onclick="switchAdminTab('content')" id="tab-content" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 active" data-i18n="addContent">İçerik Yönetimi</button>
+                        <button onclick="switchAdminTab('category')" id="tab-category" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-100" data-i18n="categories">Kategori Yönetimi</button>
+                    </div>
+
+                    <!-- Admin: Content Tab -->
+                    <div id="admin-content-section">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="space-y-4 bg-gray-50 p-6 rounded-2xl border">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <select id="content-type-select" class="p-3 rounded-xl border bg-white outline-none"></select>
+                                    <select id="content-tier" class="p-3 rounded-xl border bg-white outline-none">
+                                        <option value="1">Tier 1</option><option value="2">Tier 2</option><option value="3">Tier 3</option>
+                                        <option value="4">Tier 4</option><option value="5">Tier 5</option><option value="6">Tier 6 (Rainbow)</option>
+                                    </select>
+                                </div>
+                                <input type="text" id="content-title" data-i18n-placeholder="title" class="w-full p-3 rounded-xl border outline-none">
+                                <textarea id="content-text-admin" rows="5" data-i18n-placeholder="contentText" class="w-full p-3 rounded-xl border outline-none"></textarea>
+                                <input type="file" id="content-image-input" accept="image/*" class="hidden">
+                                <button onclick="document.getElementById('content-image-input').click()" class="w-full py-2 border-2 border-dashed border-gray-300 rounded-xl text-xs text-indigo-600 font-bold">Görsel Seç</button>
+                                <div id="image-preview-admin" class="hidden"><img src="" class="h-16 mx-auto rounded"></div>
                                 <input type="hidden" id="content-base64-image">
-                                <button onclick="handleImageUpload()" class="btn-primary text-white px-4 py-2 rounded-lg font-medium mt-3" data-i18n="convertImage">Görseli Hazırla</button>
+                                <div class="flex gap-2">
+                                    <button onclick="saveContent()" id="admin-save-btn" class="flex-1 btn-primary py-3 rounded-xl font-bold" data-i18n="saveContent">Kaydet</button>
+                                    <button onclick="resetAdminForm()" id="admin-cancel-btn" class="px-6 bg-gray-200 py-3 rounded-xl font-bold hidden" data-i18n="cancelEdit">İptal</button>
+                                </div>
                             </div>
-                            <p id="save-status" class="text-sm mt-4 font-semibold"></p>
-                            <input type="hidden" id="editing-item-path">
-                            <button onclick="saveContent()" class="w-full btn-primary text-white py-3 rounded-lg font-bold text-lg shadow-lg" data-i18n="saveContent">İçeriği Kaydet</button>
-                            <button type="button" onclick="cancelEdit()" id="cancel-edit-button" class="w-full btn-secondary text-white py-2 rounded-lg font-medium mt-2 hidden" data-i18n="cancelEdit">İptal</button>
+                            <div id="admin-items-list" class="space-y-2 max-h-[500px] overflow-y-auto"></div>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Category Tab -->
+                    <div id="admin-category-section" class="hidden">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="space-y-4 bg-gray-50 p-6 rounded-2xl border">
+                                <h3 class="font-bold text-gray-700">Yeni Kategori</h3>
+                                <input type="text" id="new-cat-id" placeholder="ID (örn: blocks)" class="w-full p-3 rounded-xl border outline-none">
+                                <input type="text" id="new-cat-name" placeholder="Görünen İsim (örn: Bloklar)" class="w-full p-3 rounded-xl border outline-none">
+                                <button onclick="addCategory()" class="w-full btn-primary py-3 rounded-xl font-bold">Kategori Ekle</button>
+                            </div>
+                            <div id="admin-cats-list" class="space-y-2"></div>
                         </div>
                     </div>
                 </div>
@@ -172,210 +175,326 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getDatabase, ref, onValue, push, serverTimestamp, remove, get, update, set } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-
-        let lang = 'tr';
-        const translations = {
-            en: {
-                wikiTitle: "YarReboarded Wiki", home: "Wiki Home", adminPanel: "Admin Panel", logout: "Logout", login: "Login", signUp: "Sign Up",
-                guestMode: "Guest Mode", wikiContents: "Wiki Contents", blocks: "Blocks", cargoes: "Cargoes", maps: "Maps", selectCategory: "Please select a category.",
-                loadingContent: "Loading...", contentNotFound: "Not found.", noContent: "No content here.", back: "Back", viewDetails: "Details", comments: "Comments", 
-                noComments: "No comments yet.", writeCommentPlaceholder: "Write comment...", addComment: "Add Comment", loginToComment: "Login to comment.",
-                emailPlaceholder: "Email", passwordPlaceholder: "Password", adminAccessOnly: "Admins only.", addContent: "Add Content", 
-                addEditContent: "Edit Content", cancelEdit: "Cancel", edit: "Edit", title: "Title", contentText: "Text", imageBase64: "Image",
-                convertImage: "Prepare Image", saveContent: "Save", loginFailed: "Failed:", loginSuccess: "Success!", signingUp: "Signing up...",
-                signUpSuccess: "Welcome!", delete: "Delete", imageError: "No Image", author: "Author", anonymous: "Anonymous", loginSignUp: "Auth",
-                deleteConfirmContent: "Delete this?", deleteConfirmComment: "Delete comment?", searchPlaceholder: "Search...", searchNoResults: "No results.",
-                profileEditTitle: "Edit Profile", username: "Username", saveProfile: "Save Profile", selectTier: "Select Tier",
-                modalOk: "OK", modalCancel: "Cancel"
-            },
-            tr: {
-                wikiTitle: "YarReboarded Wiki", home: "Wiki Anasayfa", adminPanel: "Admin Paneli", logout: "Çıkış", login: "Giriş", signUp: "Kayıt",
-                guestMode: "Misafir", wikiContents: "İçerikler", blocks: "Blocks", cargoes: "Kargolar", maps: "Haritalar", selectCategory: "Kategori seçin.",
-                loadingContent: "Yükleniyor...", contentNotFound: "Bulunamadı.", noContent: "İçerik yok.", back: "Geri", viewDetails: "Detaylar", comments: "Yorumlar", 
-                noComments: "Yorum yok.", writeCommentPlaceholder: "Yorum yaz...", addComment: "Yorum Ekle", loginToComment: "Giriş yapmalısın.",
-                emailPlaceholder: "E-posta", passwordPlaceholder: "Şifre", adminAccessOnly: "Admin girişi gerekir.", addContent: "Ekle", 
-                addEditContent: "Düzenle", cancelEdit: "İptal", edit: "Düzenle", title: "Başlık", contentText: "Metin", imageBase64: "Görsel",
-                convertImage: "Görseli Hazırla", saveContent: "Kaydet", loginFailed: "Hata:", loginSuccess: "Başarılı!", signingUp: "Kayıt...",
-                signUpSuccess: "Hoş geldiniz!", delete: "Sil", imageError: "Görsel Yok", author: "Yazar", anonymous: "Anonim", loginSignUp: "Giriş/Kayıt",
-                deleteConfirmContent: "Silinsin mi?", deleteConfirmComment: "Yorum silinsin mi?", searchPlaceholder: "Ara...", searchNoResults: "Sonuç yok.",
-                profileEditTitle: "Profili Düzenle", username: "Kullanıcı Adı", saveProfile: "Kaydet", selectTier: "Kademe Seç",
-                modalOk: "Tamam", modalCancel: "İptal"
-            },
-            es: {
-                wikiTitle: "YarReboarded Wiki", home: "Inicio Wiki", adminPanel: "Panel de Admin", logout: "Cerrar Sesión", login: "Iniciar Sesión", signUp: "Registrarse",
-                guestMode: "Modo Invitado", wikiContents: "Contenidos de Wiki", blocks: "Bloques", cargoes: "Cargamentos", maps: "Mapas", selectCategory: "Seleccione una categoría.",
-                loadingContent: "Cargando...", contentNotFound: "No encontrado.", noContent: "No hay contenido aquí.", back: "Volver", viewDetails: "Ver Detalles", comments: "Comentarios", 
-                noComments: "Sin comentarios.", writeCommentPlaceholder: "Escribe tu comentario...", addComment: "Añadir Comentario", loginToComment: "Inicia sesión para comentar.",
-                emailPlaceholder: "Correo electrónico", passwordPlaceholder: "Contraseña", adminAccessOnly: "Solo administradores.", addContent: "Añadir Contenido", 
-                addEditContent: "Editar Contenido", cancelEdit: "Cancelar", edit: "Editar", title: "Título", contentText: "Texto", imageBase64: "Imagen",
-                convertImage: "Preparar Imagen", saveContent: "Guardar", loginFailed: "Error:", loginSuccess: "¡Éxito!", signingUp: "Registrando...",
-                signUpSuccess: "¡Bienvenido!", delete: "Eliminar", imageError: "Sin Imagen", author: "Autor", anonymous: "Anónimo", loginSignUp: "Autenticación",
-                deleteConfirmContent: "¿Eliminar esto?", deleteConfirmComment: "¿Eliminar comentario?", searchPlaceholder: "Buscar...", searchNoResults: "Sin resultados.",
-                profileEditTitle: "Editar Perfil", username: "Nombre de Usuario", saveProfile: "Guardar Perfil", selectTier: "Seleccionar Nivel",
-                modalOk: "Aceptar", modalCancel: "Cancelar"
-            }
-        };
+        import { getDatabase, ref, onValue, push, serverTimestamp, remove, set, get, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCcLP7390AotwSTUzZLTOmiglNs1a1OxxU",
             authDomain: "yarreboardedwiki.firebaseapp.com",
-            databaseURL: "https://yarreboardedwiki-default-rtdb.firebaseio.com/",
+            databaseURL: "https://yarreboardedwiki-default-rtdb.firebaseio.com",
             projectId: "yarreboardedwiki",
             storageBucket: "yarreboardedwiki.firebasestorage.app",
             messagingSenderId: "365304875142",
             appId: "1:365304875142:web:5d962e22c249917745a907"
         };
-        const adminEmail = "selimhanlafci121@gmail.com";
-        const GUEST_EMAIL = "selimhanlafci008@gmail.com";
-        const GUEST_PASSWORD = "selam..lok";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
 
+        const ADMIN_EMAIL = "selimhanlafci121@gmail.com";
+        const GUEST_EMAIL = "selimhanlafci008@gmail.com";
+        const GUEST_PASS = "selam..lok";
+
+        let lang = 'tr';
         let currentUser = null;
         let isAdmin = false;
-        let currentCategory = 'blocks'; 
-        let currentContentPath = null; 
-        let allDataCache = {};
-        let currentUserProfile = { username: '', photo: '' };
+        let categories = [];
+        let currentCategory = '';
+        let wikiData = [];
+        let editingId = null;
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                isAdmin = user.email === adminEmail;
-                const snapshot = await get(ref(db, `userProfiles/${user.uid}`));
-                currentUserProfile = snapshot.exists() ? snapshot.val() : { username: user.email.split('@')[0], photo: '' };
-            } else {
-                currentUser = null; isAdmin = false; currentUserProfile = { username: '', photo: '' };
+        const translations = {
+            tr: {
+                wikiTitle: "YarReboarded Wiki", home: "Anasayfa", adminPanel: "Admin Paneli", logout: "Çıkış", login: "Giriş Yap", signUp: "Kayıt Ol",
+                guestMode: "Misafir", searchPlaceholder: "Ara...", back: "Geri", viewDetails: "Detaylar", comments: "Yorumlar", 
+                writeCommentPlaceholder: "Yorum yaz...", addComment: "Gönder", loginToComment: "Giriş yapmalısınız.", 
+                loginSignUp: "Hesap", emailPlaceholder: "E-posta", passwordPlaceholder: "Şifre", addContent: "İçerik", 
+                categories: "Kategoriler", saveContent: "Kaydet", title: "Başlık", contentText: "Metin", edit: "Düzenle", delete: "Sil", cancelEdit: "İptal",
+                success: "Başarılı!", error: "Hata:", noContent: "İçerik bulunamadı."
+            },
+            en: {
+                wikiTitle: "YarReboarded Wiki", home: "Home", adminPanel: "Admin", logout: "Logout", login: "Login", signUp: "Sign Up",
+                guestMode: "Guest", searchPlaceholder: "Search...", back: "Back", viewDetails: "Details", comments: "Comments", 
+                writeCommentPlaceholder: "Comment...", addComment: "Post", loginToComment: "Please login to comment.", 
+                loginSignUp: "Account", emailPlaceholder: "Email", passwordPlaceholder: "Password", addContent: "Content", 
+                categories: "Categories", saveContent: "Save", title: "Title", contentText: "Text", edit: "Edit", delete: "Delete", cancelEdit: "Cancel",
+                success: "Success!", error: "Error:", noContent: "No content found."
+            },
+            es: {
+                wikiTitle: "YarReboarded Wiki", home: "Inicio", adminPanel: "Admin", logout: "Cerrar", login: "Entrar", signUp: "Registro",
+                guestMode: "Invitado", searchPlaceholder: "Buscar...", back: "Volver", viewDetails: "Detalles", comments: "Comentarios", 
+                writeCommentPlaceholder: "Comentar...", addComment: "Enviar", loginToComment: "Inicia sesión para comentar.", 
+                loginSignUp: "Cuenta", emailPlaceholder: "Correo", passwordPlaceholder: "Clave", addContent: "Contenido", 
+                categories: "Categorías", saveContent: "Guardar", title: "Título", contentText: "Texto", edit: "Editar", delete: "Borrar", cancelEdit: "Cancelar",
+                success: "¡Éxito!", error: "Error:", noContent: "Sin contenido."
             }
-            updateUI();
-            if (document.getElementById('page-wiki').classList.contains('block')) loadWikiContent(currentCategory);
-        });
+        };
+
+        // UI & Pages
+        window.showAlert = (t, b) => {
+            document.getElementById('modal-title').innerText = t;
+            document.getElementById('modal-body').innerText = b;
+            document.getElementById('custom-modal').classList.replace('hidden', 'flex');
+        };
+        window.closeModal = () => document.getElementById('custom-modal').classList.replace('flex', 'hidden');
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active', 'flex-active'));
+            const target = document.getElementById(`page-${id}`);
+            target.classList.add(id === 'auth' ? 'flex-active' : 'active');
+            window.scrollTo(0,0);
+        };
+
+        window.setLanguage = (l) => { lang = l; translateUI(); loadWikiContent(currentCategory); };
 
         function translateUI() {
-            const current = translations[lang];
+            const t = translations[lang];
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (current[key]) el.textContent = current[key];
+                if (t[key]) el.textContent = t[key];
             });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
                 const key = el.getAttribute('data-i18n-placeholder');
-                if (current[key]) el.placeholder = current[key];
+                if (t[key]) el.placeholder = t[key];
             });
-            const selBtn = document.querySelector(`#wiki-category-selector button[data-category="${currentCategory}"]`);
-            if (selBtn) document.getElementById('current-category-title').textContent = selBtn.textContent;
         }
 
-        function updateUI() {
-            const current = translations[lang];
-            const authDiv = document.getElementById('auth-status');
-            authDiv.innerHTML = '';
+        // Auth
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            isAdmin = user && user.email === ADMIN_EMAIL;
+            updateAuthUI();
+            loadCategories();
+            showPage('wiki');
+        });
+
+        function updateAuthUI() {
+            const container = document.getElementById('auth-status');
+            const t = translations[lang];
             if (currentUser) {
-                const name = currentUserProfile.username || currentUser.email.split('@')[0];
-                authDiv.innerHTML = `<span class="text-sm font-medium">${name}</span><button onclick="handleSignOut()" class="bg-red-500 px-3 py-1 rounded-full text-sm">${current.logout}</button>`;
+                container.innerHTML = `<span class="text-xs font-bold">@${currentUser.email.split('@')[0]}</span>
+                    <button onclick="signOut(auth)" class="bg-red-500/20 text-red-200 p-2 rounded-lg ml-2 hover:bg-red-500 hover:text-white transition">X</button>`;
                 document.getElementById('comment-form-container').classList.remove('hidden');
                 document.getElementById('comment-login-message').classList.add('hidden');
             } else {
-                authDiv.innerHTML = `<button onclick="showPage('auth')" class="bg-indigo-500 px-4 py-2 rounded-full text-sm">${current.login}</button><button onclick="handleGuestLogin()" class="bg-green-500 px-4 py-2 rounded-full text-sm ml-2">${current.guestMode}</button>`;
+                container.innerHTML = `<button onclick="showPage('auth')" class="bg-white/10 px-3 py-2 rounded-xl text-xs font-bold">${t.login}</button>
+                    <button onclick="handleGuestLogin()" class="bg-green-600 px-3 py-2 rounded-xl text-xs font-bold ml-1">${t.guestMode}</button>`;
                 document.getElementById('comment-form-container').classList.add('hidden');
                 document.getElementById('comment-login-message').classList.remove('hidden');
             }
             document.getElementById('admin-link').classList.toggle('hidden', !isAdmin);
-            translateUI();
         }
 
-        window.setLanguage = (newLang) => { lang = newLang; updateUI(); };
-        window.showPage = (id) => {
-            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
-            document.getElementById(`page-${id}`).classList.remove('hidden');
-            document.getElementById(`page-${id}`).classList.add(id === 'auth' ? 'flex' : 'block');
-            if (id === 'wiki') loadWikiContent(currentCategory);
-            translateUI();
+        window.handleAuth = async (e) => {
+            e.preventDefault();
+            const em = document.getElementById('auth-email').value;
+            const pw = document.getElementById('auth-password').value;
+            try { await signInWithEmailAndPassword(auth, em, pw); } catch (err) { showAlert("Hata", err.message); }
         };
 
-        window.loadWikiContent = (cat) => {
-            currentCategory = cat;
-            const current = translations[lang];
-            const list = document.getElementById('wiki-list');
-            list.innerHTML = `<p class="col-span-full text-center">${current.loadingContent}</p>`;
-            document.querySelectorAll('#wiki-category-selector button').forEach(b => {
-                b.classList.toggle('bg-indigo-900', b.dataset.category === cat);
-            });
-            onValue(ref(db, cat), (snap) => {
+        window.handleSignUp = async () => {
+            const em = document.getElementById('auth-email').value;
+            const pw = document.getElementById('auth-password').value;
+            try { await createUserWithEmailAndPassword(auth, em, pw); } catch (err) { showAlert("Hata", err.message); }
+        };
+
+        window.handleGuestLogin = () => signInWithEmailAndPassword(auth, GUEST_EMAIL, GUEST_PASS);
+
+        // Category & Wiki Logic
+        function loadCategories() {
+            onValue(ref(db, 'categories'), (snap) => {
                 const data = snap.val();
-                allDataCache[cat] = data ? Object.entries(data).map(([id, val]) => ({ id, category: cat, ...val })).reverse() : [];
+                categories = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [
+                    { id: 'blocks', name: 'Blocks' }, { id: 'cargoes', name: 'Cargoes' }, { id: 'maps', name: 'Maps' }
+                ];
+                renderCategoryUI();
+                if (!currentCategory && categories.length) loadWikiContent(categories[0].id);
+            });
+        }
+
+        function renderCategoryUI() {
+            const selector = document.getElementById('wiki-category-selector');
+            selector.innerHTML = categories.map(cat => `
+                <button onclick="loadWikiContent('${cat.id}')" id="cat-btn-${cat.id}" class="px-5 py-2 rounded-full font-bold transition ${currentCategory === cat.id ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'}">${cat.name}</button>
+            `).join('');
+
+            const selectBox = document.getElementById('content-type-select');
+            selectBox.innerHTML = categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+
+            const adminCatsList = document.getElementById('admin-cats-list');
+            adminCatsList.innerHTML = categories.map(cat => `
+                <div class="flex justify-between items-center p-3 bg-white rounded-xl border">
+                    <span class="font-bold text-sm">${cat.name} (${cat.id})</span>
+                    <button onclick="deleteCategory('${cat.id}')" class="text-red-500 text-xs font-bold">Sil</button>
+                </div>
+            `).join('');
+        }
+
+        window.loadWikiContent = (id) => {
+            currentCategory = id;
+            renderCategoryUI();
+            onValue(ref(db, id), (snap) => {
+                const data = snap.val();
+                wikiData = data ? Object.entries(data).map(([key, val]) => ({ id: key, ...val })) : [];
                 renderWikiList();
             });
         };
 
         function renderWikiList() {
-            const current = translations[lang];
             const list = document.getElementById('wiki-list');
-            const items = allDataCache[currentCategory] || [];
             const term = document.getElementById('search-input').value.toLowerCase();
-            const filtered = items.filter(i => (i.title||'').toLowerCase().includes(term) || (i.content||'').toLowerCase().includes(term));
-            list.innerHTML = filtered.length ? '' : `<p class="col-span-full text-center">${current.noContent}</p>`;
-            filtered.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'wiki-card p-4 rounded-xl flex flex-col';
-                const tier = parseInt(item.tier);
-                const tierClass = tier === 6 ? 'tier-6-text' : 'text-indigo-600';
-                card.innerHTML = `
-                    <img src="${item.base64Image || ''}" class="w-full h-40 object-cover rounded-lg mb-2" onerror="this.src='https://placehold.co/400x160?text=N/A'">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-bold text-lg">${item.title}</h3>
-                        ${item.tier ? `<span class="text-xs font-bold border px-2 rounded-full ${tierClass}">T${item.tier}</span>` : ''}
+            const filtered = wikiData.filter(i => i.title?.toLowerCase().includes(term));
+            
+            if (!filtered.length) {
+                list.innerHTML = `<p class="col-span-full text-center py-10 text-gray-400 font-medium">${translations[lang].noContent}</p>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(item => `
+                <div class="wiki-card rounded-2xl overflow-hidden shadow-sm">
+                    <div class="h-32 bg-gray-100"><img src="${item.base64Image || ''}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x200?text=No+Image'"></div>
+                    <div class="p-4 flex-grow flex flex-col">
+                        <h3 class="font-bold text-gray-800 text-sm mb-1 ${item.tier == 6 ? 'tier-6-text' : ''}">${item.title}</h3>
+                        <p class="text-[10px] text-gray-500 line-clamp-2 mb-4">${item.content}</p>
+                        <button onclick="showDetail('${currentCategory}/${item.id}')" class="mt-auto w-full py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-[10px] hover:bg-indigo-600 hover:text-white transition">${translations[lang].viewDetails}</button>
                     </div>
-                    <button onclick="showDetail('${item.category}/${item.id}')" class="mt-auto text-indigo-600 font-bold text-sm text-left">${current.viewDetails}</button>
-                `;
-                list.appendChild(card);
-            });
+                </div>
+            `).join('');
         }
 
+        window.handleSearch = () => renderWikiList();
+
         window.showDetail = (path) => {
-            currentContentPath = path; showPage('detail');
-            onValue(ref(db, path), (snap) => {
+            const contentPath = path;
+            showPage('detail');
+            onValue(ref(db, contentPath), (snap) => {
                 const item = snap.val();
                 if (!item) return;
                 document.getElementById('detail-content').innerHTML = `
-                    <h2 class="text-3xl font-bold mb-4">${item.title}</h2>
-                    <img src="${item.base64Image || ''}" class="w-full max-h-80 object-contain mb-6">
-                    <div class="prose whitespace-pre-wrap">${item.content}</div>
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-black text-gray-800 ${item.tier == 6 ? 'tier-6-text' : ''}">${item.title}</h2>
+                        ${item.tier ? `<span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full font-bold text-xs">Tier ${item.tier}</span>` : ''}
+                    </div>
+                    <img src="${item.base64Image || ''}" class="w-full max-h-64 object-contain mb-6">
+                    <div class="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm">${item.content}</div>
                 `;
-                renderComments(item.comments || {});
+                const comments = item.comments ? Object.entries(item.comments).sort((a,b) => b[1].timestamp - a[1].timestamp) : [];
+                document.getElementById('comments-list').innerHTML = comments.length ? comments.map(([cid, c]) => `
+                    <div class="bg-gray-50 p-3 rounded-xl border">
+                        <div class="flex justify-between mb-1"><span class="text-[10px] font-black text-indigo-500 uppercase">@${c.userName}</span></div>
+                        <p>${c.text}</p>
+                    </div>
+                `).join('') : '<p class="text-center text-gray-400 italic">Yorum yok.</p>';
             });
+            window.currentDetailPath = contentPath;
         };
 
-        function renderComments(comments) {
-            const list = document.getElementById('comments-list');
-            list.innerHTML = '';
-            Object.entries(comments).reverse().forEach(([id, c]) => {
-                const div = document.createElement('div');
-                div.className = 'comment-box bg-gray-50 p-3 rounded mb-2';
-                div.innerHTML = `<p class="text-sm">${c.text}</p><span class="text-xs font-bold">@${c.userName}</span>`;
-                list.appendChild(div);
+        window.addComment = async () => {
+            const input = document.getElementById('comment-text');
+            const txt = input.value.trim();
+            if (!txt || !currentUser) return;
+            await push(ref(db, `${window.currentDetailPath}/comments`), {
+                text: txt, userName: currentUser.email.split('@')[0], timestamp: serverTimestamp()
+            });
+            input.value = '';
+        };
+
+        // Admin
+        window.switchAdminTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById('admin-content-section').classList.toggle('hidden', tab !== 'content');
+            document.getElementById('admin-category-section').classList.toggle('hidden', tab !== 'category');
+            if (tab === 'content') loadAdminItems();
+        };
+
+        window.addCategory = async () => {
+            const id = document.getElementById('new-cat-id').value.trim().toLowerCase();
+            const name = document.getElementById('new-cat-name').value.trim();
+            if (!id || !name) return;
+            await set(ref(db, `categories/${id}`), { name });
+            document.getElementById('new-cat-id').value = '';
+            document.getElementById('new-cat-name').value = '';
+        };
+
+        window.deleteCategory = (id) => { if(confirm("Kategori ve tüm içerikleri silinecek. Emin misiniz?")) remove(ref(db, `categories/${id}`)); };
+
+        window.handleImageUpload = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('content-base64-image').value = ev.target.result;
+                const preview = document.getElementById('image-preview-admin');
+                preview.querySelector('img').src = ev.target.result;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        };
+        document.getElementById('content-image-input').addEventListener('change', window.handleImageUpload);
+
+        window.saveContent = async () => {
+            const title = document.getElementById('content-title').value.trim();
+            const content = document.getElementById('content-text-admin').value.trim();
+            const type = document.getElementById('content-type-select').value;
+            const tier = document.getElementById('content-tier').value;
+            const img = document.getElementById('content-base64-image').value;
+            if (!title || !content) return;
+            const data = { title, content, tier, base64Image: img, updatedAt: serverTimestamp() };
+            if (editingId) await update(ref(db, `${type}/${editingId}`), data);
+            else await push(ref(db, type), { ...data, createdAt: serverTimestamp() });
+            resetAdminForm();
+            loadAdminItems();
+        };
+
+        window.resetAdminForm = () => {
+            editingId = null;
+            document.getElementById('content-title').value = '';
+            document.getElementById('content-text-admin').value = '';
+            document.getElementById('content-base64-image').value = '';
+            document.getElementById('image-preview-admin').classList.add('hidden');
+            document.getElementById('admin-cancel-btn').classList.add('hidden');
+            document.getElementById('admin-save-btn').textContent = "Kaydet";
+        };
+
+        function loadAdminItems() {
+            const list = document.getElementById('admin-items-list');
+            list.innerHTML = '<div class="loader mx-auto"></div>';
+            Promise.all(categories.map(c => get(ref(db, c.id)))).then(snaps => {
+                let html = '';
+                snaps.forEach((snap, idx) => {
+                    const cat = categories[idx].id;
+                    const data = snap.val();
+                    if (data) Object.entries(data).forEach(([id, item]) => {
+                        html += `<div class="flex items-center justify-between p-2 bg-white rounded-lg border text-xs">
+                            <span class="font-bold">${item.title} (${cat})</span>
+                            <div class="flex gap-2">
+                                <button onclick="editItem('${cat}','${id}')" class="text-indigo-600">Düzenle</button>
+                                <button onclick="deleteItem('${cat}','${id}')" class="text-red-500">Sil</button>
+                            </div>
+                        </div>`;
+                    });
+                });
+                list.innerHTML = html || '<p class="text-center py-4 text-xs">İçerik yok.</p>';
             });
         }
 
-        window.addComment = async () => {
-            const txt = document.getElementById('comment-text').value.trim();
-            if (!txt || !currentUser) return;
-            await push(ref(db, `${currentContentPath}/comments`), {
-                text: txt, userName: currentUserProfile.username, timestamp: serverTimestamp()
+        window.editItem = (cat, id) => {
+            get(ref(db, `${cat}/${id}`)).then(snap => {
+                const item = snap.val();
+                editingId = id;
+                document.getElementById('content-title').value = item.title;
+                document.getElementById('content-text-admin').value = item.content;
+                document.getElementById('content-type-select').value = cat;
+                document.getElementById('content-tier').value = item.tier || "1";
+                document.getElementById('content-base64-image').value = item.base64Image || "";
+                document.getElementById('admin-save-btn').textContent = "Güncelle";
+                document.getElementById('admin-cancel-btn').classList.remove('hidden');
             });
-            document.getElementById('comment-text').value = '';
         };
 
-        window.handleSignOut = () => signOut(auth);
-        window.handleGuestLogin = () => signInWithEmailAndPassword(auth, GUEST_EMAIL, GUEST_PASSWORD);
-        window.handleSearch = () => renderWikiList();
-        
-        // Modal placeholder logic
-        window.closeModal = () => document.getElementById('custom-modal').classList.add('hidden');
-        window.saveContent = async () => { /* Admin logic mapped to original buttons */ };
-
+        window.deleteItem = (cat, id) => { if(confirm("Silinsin mi?")) remove(ref(db, `${cat}/${id}`)).then(()=>loadAdminItems()); };
+        window.signOut = signOut;
     </script>
 </body>
 </html>
