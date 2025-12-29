@@ -1,1 +1,480 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="wikiTitle">YarReboarded Wiki</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
+        .wiki-card { background-color: white; border: 1px solid #e2e8f0; transition: all 0.3s; }
+        .wiki-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .btn-primary { background-color: #4f46e5; transition: background-color 0.2s; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: #64748b; transition: background-color 0.2s; }
+        .btn-secondary:hover { background-color: #475569; }
+        .btn-danger { background-color: #ef4444; transition: background-color 0.2s; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .comment-box { border-left: 4px solid #6366f1; padding-left: 1rem; }
+        .page-content { display: none; }
+        .header-container { display: flex; flex-direction: column; }
+        @media (min-width: 768px) { .header-container { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .profile-pic { width: 32px; height: 32px; border-radius: 9999px; object-fit: cover; border: 2px solid white; cursor: pointer; transition: transform 0.2s; }
+        .profile-pic:hover { transform: scale(1.1); }
+        .profile-initials { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 9999px; background-color: #a78bfa; color: white; font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: transform 0.2s; }
+        .profile-initials:hover { transform: scale(1.1); }
+        .tier-6-text { background-image: linear-gradient(to right, #ef4444, #f59e0b, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Modallar -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center p-4" onclick="closeModal(event)">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="modal-body" class="text-gray-600 mb-6"></p>
+            <div id="modal-actions" class="flex justify-end space-x-3">
+                <button onclick="closeModal()" id="modal-cancel" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium">İptal</button>
+                <button onclick="modalCallback()" id="modal-confirm" class="btn-danger text-white px-4 py-2 rounded-lg font-medium">Onayla</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="profile-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 hidden items-center justify-center p-4" onclick="closeProfileModal(event)">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onclick="event.stopPropagation()">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800" data-i18n="profileEditTitle">Profili Düzenle</h3>
+            <div class="flex flex-col items-center space-y-3 mb-6">
+                <img id="profile-preview" src="" class="w-24 h-24 rounded-full object-cover bg-gray-200 border-4 border-indigo-300">
+                <input type="file" id="profile-image-input" accept="image/*" class="w-full text-sm p-2 border rounded-lg" onchange="handleProfileImageUpload()">
+                <input type="hidden" id="profile-base64-image">
+            </div>
+            <div class="space-y-4">
+                <label class="block text-sm font-medium text-gray-700" data-i18n="username">Kullanıcı Adı</label>
+                <input type="text" id="profile-username" class="w-full p-3 border rounded-lg">
+            </div>
+            <div class="flex justify-end space-x-3 mt-8">
+                <button onclick="closeProfileModal()" class="bg-gray-200 px-4 py-2 rounded-lg" data-i18n="modalCancel">İptal</button>
+                <button onclick="saveProfile()" class="btn-primary text-white px-4 py-2 rounded-lg" data-i18n="saveProfile">Profili Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uygulama -->
+    <div id="app" class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full">
+        <header class="bg-indigo-700 text-white p-4 rounded-xl shadow-2xl mb-8 header-container">
+            <h1 class="text-3xl font-extrabold tracking-tight" data-i18n="wikiTitle">YarReboarded Wiki</h1>
+            <div class="flex flex-col md:flex-row md:items-center md:space-x-6">
+                <nav id="main-nav" class="flex space-x-4 mb-3 md:mb-0">
+                    <button onclick="showPage('wiki')" class="hover:text-indigo-200 font-medium" data-i18n="home">Anasayfa</button>
+                    <button id="admin-link" onclick="showPage('admin')" class="hidden hover:text-indigo-200 font-medium" data-i18n="adminPanel">Admin</button>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <select id="lang-selector" onchange="setLanguage(this.value)" class="bg-indigo-600 border-none text-white rounded p-1 text-sm">
+                        <option value="tr">TR</option>
+                        <option value="en">EN</option>
+                        <option value="es">ES</option>
+                    </select>
+                    <div id="auth-status" class="flex items-center space-x-3"></div>
+                </div>
+            </div>
+        </header>
+
+        <main id="content-area">
+            <!-- Wiki Ana Sayfası -->
+            <section id="page-wiki" class="page-content hidden block">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
+                    <span data-i18n="wikiContents">Wiki İçerikleri</span>
+                    <span id="current-category-title" class="text-indigo-600 ml-2"></span>
+                </h2>
+                <div id="wiki-category-selector" class="flex flex-wrap gap-3 mb-8">
+                    <!-- Kategoriler Dinamik Gelecek -->
+                </div>
+                <div class="mb-6 relative">
+                    <input type="search" id="search-input" oninput="handleSearch()" data-i18n-placeholder="searchPlaceholder" class="w-full p-3 pl-10 border rounded-xl shadow-sm">
+                </div>
+                <div id="wiki-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            </section>
+
+            <!-- Detay Sayfası -->
+            <section id="page-detail" class="page-content hidden block">
+                <button onclick="showPage('wiki')" class="text-indigo-600 mb-6 flex items-center font-medium">
+                    <span data-i18n="back">Geri Dön</span>
+                </button>
+                <div id="detail-content" class="wiki-card p-6 md:p-10 rounded-xl shadow-xl"></div>
+                <div class="mt-10 p-6 bg-white rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4" data-i18n="comments">Yorumlar</h3>
+                    <div id="comments-list" class="space-y-4 mb-6"></div>
+                    <div id="comment-form-container" class="hidden border-t pt-4">
+                        <textarea id="comment-text" rows="3" data-i18n-placeholder="writeCommentPlaceholder" class="w-full p-3 border rounded-lg"></textarea>
+                        <button onclick="addComment()" class="btn-primary text-white px-4 py-2 rounded-lg mt-3" data-i18n="addComment">Yorum Ekle</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin Paneli -->
+            <section id="page-admin" class="page-content hidden">
+                <div class="wiki-card p-6 md:p-8 rounded-xl shadow-xl">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-8" data-i18n="adminPanel">Admin Paneli</h2>
+                    
+                    <!-- Kategori Yönetimi -->
+                    <div class="mb-10 p-5 bg-green-50 rounded-xl border border-green-200">
+                        <h3 class="text-xl font-bold text-green-700 mb-4" data-i18n="manageCategories">Kategorileri Yönet</h3>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="new-category-name" placeholder="Kategori Adı (örn: ships)" class="flex-grow p-2 border rounded">
+                            <input type="text" id="new-category-label" placeholder="Görünen Ad (örn: Gemiler)" class="flex-grow p-2 border rounded">
+                            <button onclick="addCategory()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" data-i18n="addCategory">Kategori Ekle</button>
+                        </div>
+                        <div id="admin-category-list" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <div id="admin-controls" class="space-y-6">
+                        <div class="space-y-4 p-5 bg-indigo-50 rounded-xl border border-indigo-200">
+                            <h3 id="admin-form-title" class="text-xl font-bold text-indigo-700" data-i18n="addContent">Yeni İçerik Ekle</h3>
+                            <select id="content-type" class="w-full p-3 border rounded-lg"></select>
+                            <select id="content-tier" class="w-full p-3 border rounded-lg">
+                                <option value="" disabled selected data-i18n="selectTier">Kademe Seç</option>
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                            </select>
+                            <input type="text" id="content-title" data-i18n-placeholder="title" class="w-full p-3 border rounded-lg">
+                            <textarea id="content-text" rows="8" data-i18n-placeholder="contentText" class="w-full p-3 border rounded-lg"></textarea>
+                            <input type="file" id="content-image-input" class="w-full p-2 border bg-white rounded-lg">
+                            <input type="hidden" id="content-base64-image">
+                            <button onclick="handleImageUpload()" class="btn-primary text-white px-4 py-2 rounded-lg" data-i18n="convertImage">Görseli Hazırla</button>
+                            <input type="hidden" id="editing-item-path">
+                            <button onclick="saveContent()" class="w-full btn-primary text-white py-3 rounded-lg font-bold" data-i18n="saveContent">Kaydet</button>
+                            <button onclick="cancelEdit()" id="cancel-edit-button" class="w-full btn-secondary text-white py-2 rounded-lg hidden" data-i18n="cancelEdit">İptal</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Auth -->
+            <section id="page-auth" class="page-content hidden flex justify-center items-center h-[70vh]">
+                <div class="wiki-card p-8 rounded-xl shadow-2xl w-full max-w-md">
+                    <h2 class="text-3xl font-bold mb-8 text-center" data-i18n="loginSignUp">Giriş / Kayıt</h2>
+                    <form id="auth-form" class="space-y-6">
+                        <input type="email" id="auth-email" data-i18n-placeholder="emailPlaceholder" required class="w-full p-3 border rounded-lg">
+                        <input type="password" id="auth-password" data-i18n-placeholder="passwordPlaceholder" required class="w-full p-3 border rounded-lg">
+                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-bold" data-i18n="login">Giriş Yap</button>
+                        <button type="button" onclick="handleSignUp()" class="w-full bg-gray-200 py-3 rounded-lg font-bold" data-i18n="signUp">Kayıt Ol</button>
+                        <p id="auth-message" class="text-sm text-center mt-4"></p>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, push, serverTimestamp, remove, get, update, set } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcLP7390AotwSTUzZLTOmiglNs1a1OxxU",
+            authDomain: "yarreboardedwiki.firebaseapp.com",
+            databaseURL: "https://yarreboardedwiki-default-rtdb.firebaseio.com/",
+            projectId: "yarreboardedwiki",
+            storageBucket: "yarreboardedwiki.firebasestorage.app",
+            messagingSenderId: "365304875142",
+            appId: "1:365304875142:web:5d962e22c249917745a907"
+        };
+        const adminEmail = "selimhanlafci121@gmail.com";
+        const GUEST_EMAIL = "selimhanlafci008@gmail.com";
+        const GUEST_PASSWORD = "selam..lok";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        let lang = 'tr';
+        let currentUser = null;
+        let isAdmin = false;
+        let currentCategory = 'blocks';
+        let currentContentPath = null;
+        let currentUserProfile = { username: '', photo: '' };
+        let categories = []; 
+
+        const translations = {
+            tr: {
+                wikiTitle: "YarReboarded Wiki", home: "Anasayfa", adminPanel: "Admin Paneli", logout: "Çıkış", login: "Giriş", signUp: "Kayıt",
+                guestMode: "Misafir", wikiContents: "İçerikler", searchPlaceholder: "Ara...", back: "Geri", comments: "Yorumlar",
+                addComment: "Yorum Ekle", loginSignUp: "Giriş / Kayıt", title: "Başlık", contentText: "Metin", saveContent: "Kaydet",
+                manageCategories: "Kategorileri Yönet", addCategory: "Ekle", delete: "Sil", edit: "Düzenle", selectTier: "Kademe Seç",
+                convertImage: "Görseli Hazırla", cancelEdit: "İptal", addContent: "Yeni Ekle", emailPlaceholder: "E-posta", passwordPlaceholder: "Şifre"
+            },
+            en: {
+                wikiTitle: "YarReboarded Wiki", home: "Home", adminPanel: "Admin Panel", logout: "Logout", login: "Login", signUp: "Sign Up",
+                guestMode: "Guest", wikiContents: "Contents", searchPlaceholder: "Search...", back: "Back", comments: "Comments",
+                addComment: "Add Comment", loginSignUp: "Login / Sign Up", title: "Title", contentText: "Content", saveContent: "Save",
+                manageCategories: "Manage Categories", addCategory: "Add", delete: "Delete", edit: "Edit", selectTier: "Select Tier",
+                convertImage: "Prepare Image", cancelEdit: "Cancel", addContent: "Add New", emailPlaceholder: "Email", passwordPlaceholder: "Password"
+            },
+            es: {
+                wikiTitle: "YarReboarded Wiki", home: "Inicio", adminPanel: "Panel Admin", logout: "Salir", login: "Entrar", signUp: "Registro",
+                guestMode: "Invitado", wikiContents: "Contenidos", searchPlaceholder: "Buscar...", back: "Volver", comments: "Comentarios",
+                addComment: "Añadir Comentario", loginSignUp: "Entrar / Registro", title: "Título", contentText: "Contenido", saveContent: "Guardar",
+                manageCategories: "Gestionar Categorías", addCategory: "Añadir", delete: "Borrar", edit: "Editar", selectTier: "Seleccionar Nivel",
+                convertImage: "Preparar Imagen", cancelEdit: "Cancelar", addContent: "Añadir Nuevo", emailPlaceholder: "Correo", passwordPlaceholder: "Contraseña"
+            }
+        };
+
+        // Kategori Senkronizasyonu
+        onValue(ref(db, 'settings/categories'), (snapshot) => {
+            const data = snapshot.val();
+            categories = data ? Object.values(data) : [
+                { id: 'blocks', label: 'Blocks' },
+                { id: 'cargoes', label: 'Kargolar' },
+                { id: 'maps', label: 'Haritalar' }
+            ];
+            renderCategorySelectors();
+            renderAdminCategoryList();
+        });
+
+        function renderCategorySelectors() {
+            const selector = document.getElementById('wiki-category-selector');
+            const typeSelect = document.getElementById('content-type');
+            selector.innerHTML = '';
+            typeSelect.innerHTML = '';
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.textContent = cat.label;
+                btn.className = `px-5 py-2 rounded-full font-semibold shadow-lg transition ${currentCategory === cat.id ? 'bg-indigo-900 text-white' : 'btn-primary text-white'}`;
+                btn.onclick = () => loadWikiContent(cat.id);
+                selector.appendChild(btn);
+
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.label;
+                typeSelect.appendChild(opt);
+            });
+        }
+
+        function renderAdminCategoryList() {
+            const list = document.getElementById('admin-category-list');
+            list.innerHTML = '';
+            categories.forEach(cat => {
+                const badge = document.createElement('div');
+                badge.className = "flex items-center bg-white p-2 rounded border shadow-sm gap-2";
+                badge.innerHTML = `
+                    <span class="font-bold">${cat.label}</span>
+                    <span class="text-xs text-gray-400">(${cat.id})</span>
+                    ${!['blocks', 'cargoes', 'maps'].includes(cat.id) ? 
+                    `<button onclick="deleteCategory('${cat.id}')" class="text-red-500 font-bold ml-2">×</button>` : ''}
+                `;
+                list.appendChild(badge);
+            });
+        }
+
+        async function addCategory() {
+            const id = document.getElementById('new-category-name').value.trim();
+            const label = document.getElementById('new-category-label').value.trim();
+            if(!id || !label) return;
+            await set(ref(db, `settings/categories/${id}`), { id, label });
+            document.getElementById('new-category-name').value = '';
+            document.getElementById('new-category-label').value = '';
+        }
+
+        async function deleteCategory(id) {
+            if(confirm("Bu kategoriyi silmek istediğine emin misin? (İçerikler silinmez ama erişilemez kalabilir)")) {
+                await remove(ref(db, `settings/categories/${id}`));
+            }
+        }
+
+        function translateUI() {
+            const current = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(current[key]) el.textContent = current[key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if(current[key]) el.placeholder = current[key];
+            });
+        }
+
+        function setLanguage(newLang) {
+            lang = newLang;
+            translateUI();
+            if(currentContentPath) showDetail(currentContentPath);
+            loadWikiContent(currentCategory);
+        }
+
+        // --- AUTH & CORE ---
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            isAdmin = user && user.email === adminEmail;
+            if(user) {
+                const snap = await get(ref(db, `userProfiles/${user.uid}`));
+                currentUserProfile = snap.val() || { username: user.email.split('@')[0], photo: '' };
+            }
+            updateUI();
+        });
+
+        function updateUI() {
+            const authDiv = document.getElementById('auth-status');
+            const current = translations[lang];
+            if(currentUser) {
+                authDiv.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-bold">${currentUserProfile.username}</span>
+                        ${currentUserProfile.photo ? `<img src="${currentUserProfile.photo}" class="profile-pic" onclick="openProfileModal()">` : `<div class="profile-initials" onclick="openProfileModal()">${currentUserProfile.username[0].toUpperCase()}</div>`}
+                    </div>
+                    <button onclick="handleSignOut()" class="bg-red-500 px-3 py-1 rounded-full text-xs font-bold">${current.logout}</button>
+                `;
+                document.getElementById('comment-form-container').classList.remove('hidden');
+                if(isAdmin) document.getElementById('admin-link').classList.remove('hidden');
+            } else {
+                authDiv.innerHTML = `
+                    <button onclick="showPage('auth')" class="bg-indigo-500 px-4 py-2 rounded-full text-xs font-bold">${current.login}</button>
+                    <button onclick="handleGuestLogin()" class="bg-green-500 px-4 py-2 rounded-full text-xs font-bold">${current.guestMode}</button>
+                `;
+                document.getElementById('comment-form-container').classList.add('hidden');
+                document.getElementById('admin-link').classList.add('hidden');
+            }
+            translateUI();
+        }
+
+        async function handleGuestLogin() {
+            await signInWithEmailAndPassword(auth, GUEST_EMAIL, GUEST_PASSWORD);
+        }
+
+        async function handleSignOut() {
+            await signOut(auth);
+            location.reload();
+        }
+
+        function showPage(id) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`page-${id}`).classList.remove('hidden');
+        }
+
+        function loadWikiContent(cat) {
+            currentCategory = cat;
+            renderCategorySelectors();
+            const list = document.getElementById('wiki-list');
+            list.innerHTML = `<p class="col-span-full text-center">Yükleniyor...</p>`;
+            
+            onValue(ref(db, cat), (snap) => {
+                const data = snap.val();
+                list.innerHTML = '';
+                if(!data) return;
+                Object.keys(data).forEach(id => {
+                    const item = data[id];
+                    const card = document.createElement('div');
+                    card.className = "wiki-card p-4 rounded-xl shadow flex flex-col";
+                    card.innerHTML = `
+                        <img src="${item.base64Image || 'https://placehold.co/400x160?text=No+Image'}" class="h-32 object-cover rounded mb-2">
+                        <h3 class="font-bold text-lg">${item.title}</h3>
+                        <p class="text-xs text-gray-500 line-clamp-2">${item.content}</p>
+                        <button onclick="showDetail('${cat}/${id}')" class="mt-4 text-indigo-600 font-bold text-sm">Detaylar →</button>
+                    `;
+                    list.appendChild(card);
+                });
+            });
+        }
+
+        async function showDetail(path) {
+            currentContentPath = path;
+            showPage('detail');
+            const snap = await get(ref(db, path));
+            const item = snap.val();
+            const detail = document.getElementById('detail-content');
+            detail.innerHTML = `
+                <h2 class="text-3xl font-bold mb-4">${item.title}</h2>
+                <img src="${item.base64Image || ''}" class="w-full max-h-80 object-contain mb-6">
+                <div class="whitespace-pre-wrap">${item.content}</div>
+                ${isAdmin ? `<button onclick="handleEdit('${path}')" class="mt-4 bg-orange-500 text-white px-4 py-2 rounded">Düzenle</button>` : ''}
+            `;
+            renderComments(item.comments || {});
+        }
+
+        function renderComments(comments) {
+            const list = document.getElementById('comments-list');
+            list.innerHTML = '';
+            Object.keys(comments).forEach(id => {
+                const c = comments[id];
+                const div = document.createElement('div');
+                div.className = "p-3 bg-gray-50 rounded border-l-4 border-indigo-500";
+                div.innerHTML = `<p>${c.text}</p><span class="text-xs font-bold">@${c.userName}</span>`;
+                list.appendChild(div);
+            });
+        }
+
+        async function addComment() {
+            const txt = document.getElementById('comment-text').value.trim();
+            if(!txt || !currentUser) return;
+            await push(ref(db, `${currentContentPath}/comments`), {
+                text: txt,
+                userName: currentUserProfile.username,
+                timestamp: serverTimestamp()
+            });
+            document.getElementById('comment-text').value = '';
+        }
+
+        // --- ADMIN FUNCTIONS ---
+        window.handleImageUpload = function() {
+            const file = document.getElementById('content-image-input').files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => document.getElementById('content-base64-image').value = e.target.result;
+            reader.readAsDataURL(file);
+        }
+
+        window.saveContent = async function() {
+            const path = document.getElementById('editing-item-path').value;
+            const type = document.getElementById('content-type').value;
+            const data = {
+                title: document.getElementById('content-title').value,
+                content: document.getElementById('content-text').value,
+                base64Image: document.getElementById('content-base64-image').value,
+                tier: document.getElementById('content-tier').value,
+                authorName: currentUserProfile.username
+            };
+            if(path) {
+                await update(ref(db, path), data);
+            } else {
+                await push(ref(db, type), data);
+            }
+            alert("Kaydedildi!");
+            showPage('wiki');
+        }
+
+        window.handleEdit = async function(path) {
+            const snap = await get(ref(db, path));
+            const item = snap.val();
+            showPage('admin');
+            document.getElementById('editing-item-path').value = path;
+            document.getElementById('content-title').value = item.title;
+            document.getElementById('content-text').value = item.content;
+            document.getElementById('content-base64-image').value = item.base64Image;
+            document.getElementById('content-type').value = path.split('/')[0];
+            document.getElementById('cancel-edit-button').classList.remove('hidden');
+        }
+
+        window.cancelEdit = function() {
+            document.getElementById('editing-item-path').value = '';
+            showPage('wiki');
+        }
+
+        // Global exports
+        window.showPage = showPage;
+        window.showDetail = showDetail;
+        window.loadWikiContent = loadWikiContent;
+        window.setLanguage = setLanguage;
+        window.addCategory = addCategory;
+        window.deleteCategory = deleteCategory;
+        window.handleGuestLogin = handleGuestLogin;
+        window.handleSignOut = handleSignOut;
+        window.addComment = addComment;
+
+        window.onload = () => { translateUI(); showPage('wiki'); loadWikiContent('blocks'); };
+    </script>
+</body>
+</html>
+
 
